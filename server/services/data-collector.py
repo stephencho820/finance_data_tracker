@@ -41,11 +41,11 @@ def collect_korean_data(start_date, end_date, market):
         else:
             raise ValueError(f"Unknown Korean market: {market}")
         
-        # Get more comprehensive data - increase limit
-        tickers = tickers[:100]
+        # Reasonable limit for performance - prevent timeout
+        tickers = tickers[:30]
         
-        # Process stocks in batches for better performance
-        batch_size = 20
+        # Process stocks in smaller batches for better performance
+        batch_size = 10
         for i in range(0, len(tickers), batch_size):
             batch = tickers[i:i + batch_size]
             
@@ -128,18 +128,14 @@ def collect_korean_data(start_date, end_date, market):
                         except:
                             pass
                         
-                        # Get 52-week high/low from historical data
+                        # Get 52-week high/low from recent data only (for performance)
                         week_52_high = "N/A"
                         week_52_low = "N/A"
                         try:
-                            # Get 1 year of data for 52-week calculation
-                            year_ago = (end_dt - timedelta(days=365)).strftime('%Y%m%d')
-                            year_df = pykrx_stock.get_market_ohlcv_by_date(year_ago, 
-                                                                          end_dt.strftime('%Y%m%d'), 
-                                                                          ticker)
-                            if not year_df.empty:
-                                week_52_high = float(year_df['고가'].max())
-                                week_52_low = float(year_df['저가'].min())
+                            # Use current data for high/low approximation
+                            if not df.empty:
+                                week_52_high = float(df['고가'].max())
+                                week_52_low = float(df['저가'].min())
                         except:
                             pass
                         
@@ -170,9 +166,9 @@ def collect_korean_data(start_date, end_date, market):
                     # Skip individual stock errors but continue processing
                     continue
             
-            # Add a small delay between batches to avoid overwhelming the API
+            # Add delay between batches to avoid overwhelming the API
             import time
-            time.sleep(0.1)
+            time.sleep(0.5)
                 
         return data
         
@@ -186,23 +182,16 @@ def collect_us_data(start_date, end_date, market):
         
         data = []
         
-        # Define comprehensive market symbols
+        # Optimized market symbols for performance
         market_symbols = {
             'sp500': ['^GSPC', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'BRK-B', 'UNH', 
-                     'JNJ', 'V', 'PG', 'JPM', 'HD', 'MA', 'AVGO', 'CVX', 'LLY', 'PFE', 'ABBV', 'KO', 
-                     'PEP', 'TMO', 'MRK', 'COST', 'WMT', 'ACN', 'DHR', 'NEE', 'VZ', 'ABT', 'ADBE', 
-                     'CRM', 'TXN', 'NKE', 'QCOM', 'T', 'AMD', 'NFLX', 'RTX', 'BMY', 'UPS', 'LOW', 
-                     'HON', 'ORCL', 'MDT', 'IBM', 'AMT', 'SPGI'],
+                     'JNJ', 'V', 'PG', 'JPM', 'HD', 'MA', 'AVGO', 'CVX', 'LLY', 'PFE'],
             'nasdaq': ['^IXIC', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'NFLX', 'ADBE',
-                      'PYPL', 'INTC', 'CMCSA', 'CSCO', 'AVGO', 'TXN', 'QCOM', 'AMD', 'INTU', 'ISRG',
-                      'BKNG', 'GILD', 'MU', 'ADI', 'AMAT', 'LRCX', 'MDLZ', 'REGN', 'ATVI', 'FISV',
-                      'CSX', 'ADP', 'NXPI', 'KLAC', 'MRVL', 'ORLY', 'DXCM', 'LULU', 'EXC', 'XEL'],
+                      'PYPL', 'INTC', 'CMCSA', 'CSCO', 'AVGO', 'TXN', 'QCOM', 'AMD', 'INTU', 'ISRG'],
             'dow': ['^DJI', 'AAPL', 'MSFT', 'UNH', 'GS', 'HD', 'CAT', 'AMGN', 'CRM', 'V', 'HON', 'IBM',
-                   'BA', 'JPM', 'JNJ', 'WMT', 'PG', 'CVX', 'MRK', 'AXP', 'TRV', 'NKE', 'KO', 'MCD',
-                   'MMM', 'DIS', 'DOW', 'WBA', 'INTC', 'VZ'],
+                   'BA', 'JPM', 'JNJ', 'WMT', 'PG', 'CVX', 'MRK', 'AXP'],
             'russell': ['^RUT', 'GME', 'AMC', 'PLTR', 'BB', 'CLOV', 'WKHS', 'RIDE', 'SPCE', 'CLNE',
-                       'WISH', 'SOFI', 'HOOD', 'LCID', 'RIVN', 'CLOV', 'SKLZ', 'RBLX', 'COIN', 'ROKU',
-                       'BYND', 'PTON', 'ZM', 'DOCU', 'SNOW', 'CRWD', 'NET', 'DDOG', 'OKTA', 'TWLO']
+                       'WISH', 'SOFI', 'HOOD', 'LCID', 'RIVN', 'SKLZ', 'RBLX', 'COIN', 'ROKU', 'BYND']
         }
         
         if market not in market_symbols:
@@ -210,9 +199,14 @@ def collect_us_data(start_date, end_date, market):
         
         symbols = market_symbols[market]
         
-        for symbol in symbols:
-            try:
-                ticker = yf.Ticker(symbol)
+        # Process symbols in smaller batches for better performance
+        batch_size = 5
+        for i in range(0, len(symbols), batch_size):
+            batch = symbols[i:i + batch_size]
+            
+            for symbol in batch:
+                try:
+                    ticker = yf.Ticker(symbol)
                 
                 # Get historical data
                 hist = ticker.history(start=start_date, end=end_date)
@@ -282,9 +276,13 @@ def collect_us_data(start_date, end_date, market):
                         'date': end_date
                     })
                     
-            except Exception as e:
-                # Skip individual stock errors
-                continue
+                except Exception as e:
+                    # Skip individual stock errors but continue processing
+                    continue
+            
+            # Add delay between batches to avoid rate limiting
+            import time
+            time.sleep(0.5)
                 
         return data
         
