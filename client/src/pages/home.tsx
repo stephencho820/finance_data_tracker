@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DataCollectionForm } from "@/components/data-collection-form";
 import { DataDisplay } from "@/components/data-display";
+import { HistoricalData } from "@/components/historical-data";
 import { QuickStats } from "@/components/quick-stats";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,9 @@ export default function Home() {
 
           {/* Data Display */}
           <DataDisplay data={stockData} isLoading={isLoading} />
+
+          {/* Historical Data */}
+          <HistoricalData />
 
           {/* Quick Stats */}
           <QuickStats />

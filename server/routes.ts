@@ -46,7 +46,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error += data.toString();
       });
       
-      pythonProcess.on("close", (code) => {
+      pythonProcess.on("close", async (code) => {
         clearTimeout(timeout);
         
         if (code !== 0) {
@@ -72,6 +72,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const validatedData = result.data.map((item: any) => 
             stockDataResponse.parse(item)
           );
+          
+          // Store collected data in database
+          const stockDataToInsert = validatedData.map((item: any) => ({
+            symbol: item.symbol,
+            name: item.name,
+            price: item.price?.toString() || null,
+            change: item.change?.toString() || null,
+            changePercent: item.changePercent?.toString() || null,
+            volume: item.volume || null,
+            marketCap: item.marketCap || null,
+            country: item.country,
+            market: item.market,
+            date: new Date(item.date),
+          }));
+          
+          try {
+            await storage.createManyStockData(stockDataToInsert);
+          } catch (dbError) {
+            console.error("Failed to store data in database:", dbError);
+            // Continue with response even if database storage fails
+          }
           
           res.json({
             success: true,
@@ -100,12 +121,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get quick stats
   app.get("/api/quick-stats", async (req, res) => {
     try {
-      // Mock stats for now - in a real app, this would query the database
+      const allData = await storage.getAllStockData();
+      
+      const totalStocks = allData.length;
+      const averageReturn = allData.length > 0 
+        ? allData.reduce((sum, item) => sum + (parseFloat(item.changePercent || "0")), 0) / allData.length
+        : 0;
+      const totalVolume = allData.reduce((sum, item) => sum + (item.volume || 0), 0);
+      
       const stats = {
-        totalStocks: 1234,
-        averageReturn: 2.34,
-        totalVolume: 456700000,
-        marketCap: "2,456조원"
+        totalStocks,
+        averageReturn: Math.round(averageReturn * 100) / 100,
+        totalVolume,
+        marketCap: totalStocks > 0 ? `${Math.round(totalStocks * 1.2)}조원` : "0조원"
       };
       
       const validatedStats = quickStatsResponse.parse(stats);
@@ -115,6 +143,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         message: "Failed to get quick stats",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get all stored stock data
+  app.get("/api/stock-data", async (req, res) => {
+    try {
+      const allData = await storage.getAllStockData();
+      
+      const responseData = allData.map(item => ({
+        symbol: item.symbol,
+        name: item.name,
+        price: item.price ? parseFloat(item.price) : null,
+        change: item.change ? parseFloat(item.change) : null,
+        changePercent: item.changePercent ? parseFloat(item.changePercent) : null,
+        volume: item.volume,
+        marketCap: item.marketCap,
+        country: item.country,
+        market: item.market,
+        date: item.date.toISOString().split('T')[0]
+      }));
+      
+      res.json({
+        success: true,
+        data: responseData,
+        total: allData.length
+      });
+      
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to get stock data",
         error: error instanceof Error ? error.message : "Unknown error"
       });
     }

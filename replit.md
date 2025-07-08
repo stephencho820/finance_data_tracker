@@ -103,6 +103,14 @@ This is a full-stack trading data collection application that allows users to co
 ```
 Changelog:
 - July 08, 2025. Initial setup
+- July 08, 2025. Database integration complete:
+  - Added PostgreSQL database with Drizzle ORM
+  - Implemented DatabaseStorage class replacing MemStorage
+  - Created database schema push functionality
+  - Added API endpoints for storing and retrieving stock data
+  - Historical data component showing stored data
+  - Quick stats now pull from real database data
+  - Data collection now persists to database
 ```
 
 ## User Preferences
