@@ -42,11 +42,11 @@ def collect_korean_data(start_date, end_date, market, sort_by=None, limit=None):
             raise ValueError(f"Unknown Korean market: {market}")
         
         # Apply custom limit or use default for performance
-        max_tickers = limit if limit and limit <= 50 else 15
+        max_tickers = limit if limit and limit <= 20 else 5
         tickers = tickers[:max_tickers]
         
         # Process stocks in smaller batches for better performance
-        batch_size = 10
+        batch_size = 5
         for i in range(0, len(tickers), batch_size):
             batch = tickers[i:i + batch_size]
             
@@ -143,22 +143,40 @@ def collect_korean_data(start_date, end_date, market, sort_by=None, limit=None):
                         data.append({
                             'symbol': ticker,
                             'name': name,
-                            'price': float(current_price),
+                            'current_price': float(current_price),
                             'change': float(change),
-                            'changePercent': float(change_percent),
+                            'change_percent': float(change_percent),
                             'volume': int(latest['거래량']),
-                            'marketCap': market_cap,
-                            'peRatio': pe_ratio if pe_ratio != 'N/A' else None,
+                            'market_cap': int(market_cap_raw.iloc[0]['시가총액']) if not market_cap_raw.empty else None,
+                            'pe_ratio': pe_ratio if pe_ratio != 'N/A' else None,
                             'pbr': pbr if pbr != 'N/A' else None,
-                            'dividendYield': dividend_yield,
-                            'week52High': week_52_high if week_52_high != 'N/A' else None,
-                            'week52Low': week_52_low if week_52_low != 'N/A' else None,
-                            'sharesOutstanding': shares_outstanding,
-                            'tradingValue': trading_value,
-                            'openPrice': float(latest['시가']),
-                            'highPrice': float(latest['고가']),
-                            'lowPrice': float(latest['저가']),
-                            'country': 'korea',
+                            'dividend_yield': dividend_yield,
+                            'week_52_high': week_52_high if week_52_high != 'N/A' else None,
+                            'week_52_low': week_52_low if week_52_low != 'N/A' else None,
+                            'shares_outstanding': int(market_cap_raw.iloc[0]['상장주식수']) if not market_cap_raw.empty else None,
+                            'eps': None,
+                            'sector': None,
+                            'industry': None,
+                            'beta': None,
+                            'book_value': None,
+                            'revenue': None,
+                            'net_income': None,
+                            'debt_to_equity': None,
+                            'roe': None,
+                            'roa': None,
+                            'operating_margin': None,
+                            'profit_margin': None,
+                            'revenue_growth': None,
+                            'earnings_growth': None,
+                            'current_ratio': None,
+                            'quick_ratio': None,
+                            'price_to_sales': None,
+                            'price_to_cash_flow': None,
+                            'enterprise_value': None,
+                            'ev_to_revenue': None,
+                            'ev_to_ebitda': None,
+                            'free_cash_flow': None,
+                            'country': 'Korea',
                             'market': market_name,
                             'date': end_date
                         })
