@@ -111,6 +111,14 @@ Changelog:
   - Historical data component showing stored data
   - Quick stats now pull from real database data
   - Data collection now persists to database
+- July 09, 2025. Real API data integration:
+  - Fixed schema field name mismatches (current_price, change_percent, market_cap)
+  - Updated database schema to match API output
+  - Implemented real pykrx API data collection with caching
+  - Added cached data collector to provide real API data while avoiding timeouts
+  - Supports both Korean (pykrx) and US (yfinance) stock data
+  - Added comprehensive financial metrics (35+ fields)
+  - Implemented sorting and filtering capabilities
 ```
 
 ## User Preferences
