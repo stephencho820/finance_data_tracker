@@ -18,10 +18,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedRequest = dataCollectionRequest.parse(req.body);
       
       // Spawn Python process for data collection
-      const pythonScript = path.join(__dirname, "services", "data-collector-simple.py");
+      const pythonScript = path.join(__dirname, "services", "data-collector.py");
       const pythonProcess = spawn("python3", [pythonScript]);
       
-      // Set up timeout (30 seconds)
+      // Set up timeout (2 minutes for comprehensive data collection)
       const timeout = setTimeout(() => {
         pythonProcess.kill();
         res.status(408).json({
@@ -29,7 +29,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Data collection timed out",
           error: "The request took too long to process"
         });
-      }, 30000);
+      }, 120000);
       
       // Send input data to Python process
       pythonProcess.stdin.write(JSON.stringify(validatedRequest));
