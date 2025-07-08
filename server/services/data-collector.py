@@ -42,11 +42,11 @@ def collect_korean_data(start_date, end_date, market, sort_by=None, limit=None):
             raise ValueError(f"Unknown Korean market: {market}")
         
         # Apply custom limit or use default for performance
-        max_tickers = limit if limit and limit <= 20 else 5
+        max_tickers = limit if limit and limit <= 10 else 3
         tickers = tickers[:max_tickers]
         
         # Process stocks in smaller batches for better performance
-        batch_size = 5
+        batch_size = 3
         for i in range(0, len(tickers), batch_size):
             batch = tickers[i:i + batch_size]
             
