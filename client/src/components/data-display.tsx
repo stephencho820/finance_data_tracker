@@ -22,25 +22,25 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
 
   const handleDownload = () => {
     const csvContent = [
-      ["종목코드", "종목명", "현재가", "전일대비", "등락률", "거래량", "시가총액", "PER", "PBR", "배당수익률", "52주고가", "52주저가", "시가", "고가", "저가", "상장주식수", "거래대금", "국가", "시장"],
+      ["종목코드", "종목명", "현재가", "전일대비", "등락률", "거래량", "시가총액", "PER", "PBR", "배당수익률", "52주고가", "52주저가", "주당순이익", "섹터", "업종", "상장주식수", "장부가치", "국가", "시장"],
       ...data.map(item => [
         item.symbol,
         item.name,
-        item.price?.toString() || "N/A",
+        item.current_price?.toString() || "N/A",
         item.change?.toString() || "N/A",
-        item.changePercent?.toString() || "N/A",
+        item.change_percent?.toString() || "N/A",
         item.volume?.toString() || "N/A",
-        item.marketCap || "N/A",
-        item.peRatio?.toString() || "N/A",
+        item.market_cap || "N/A",
+        item.pe_ratio?.toString() || "N/A",
         item.pbr?.toString() || "N/A",
-        item.dividendYield || "N/A",
-        item.week52High?.toString() || "N/A",
-        item.week52Low?.toString() || "N/A",
-        item.openPrice?.toString() || "N/A",
-        item.highPrice?.toString() || "N/A",
-        item.lowPrice?.toString() || "N/A",
-        item.sharesOutstanding || "N/A",
-        item.tradingValue || "N/A",
+        item.dividend_yield?.toString() || "N/A",
+        item.week_52_high?.toString() || "N/A",
+        item.week_52_low?.toString() || "N/A",
+        item.eps?.toString() || "N/A",
+        item.sector || "N/A",
+        item.industry || "N/A",
+        item.shares_outstanding?.toString() || "N/A",
+        item.book_value?.toString() || "N/A",
         item.country,
         item.market
       ])
@@ -149,9 +149,9 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
                     <TableHead className="text-slate-300 text-right">배당수익률</TableHead>
                     <TableHead className="text-slate-300 text-right">52주고가</TableHead>
                     <TableHead className="text-slate-300 text-right">52주저가</TableHead>
-                    <TableHead className="text-slate-300 text-right">시가</TableHead>
-                    <TableHead className="text-slate-300 text-right">고가</TableHead>
-                    <TableHead className="text-slate-300 text-right">저가</TableHead>
+                    <TableHead className="text-slate-300 text-right">주당순이익</TableHead>
+                    <TableHead className="text-slate-300 text-right">섹터</TableHead>
+                    <TableHead className="text-slate-300 text-right">업종</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -160,7 +160,7 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
                       <TableCell className="font-mono text-slate-300">{item.symbol}</TableCell>
                       <TableCell className="font-medium text-white">{item.name}</TableCell>
                       <TableCell className="text-right text-white">
-                        {formatPrice(item.price, item.country)}
+                        {formatPrice(item.current_price, item.country)}
                       </TableCell>
                       <TableCell className="text-right">
                         <span className={
@@ -171,15 +171,15 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {item.changePercent && item.changePercent >= 0 ? (
+                          {item.change_percent && item.change_percent >= 0 ? (
                             <TrendingUp className="h-4 w-4 text-green-500" />
                           ) : (
                             <TrendingDown className="h-4 w-4 text-red-500" />
                           )}
                           <span className={
-                            item.changePercent && item.changePercent >= 0 ? "text-green-500" : "text-red-500"
+                            item.change_percent && item.change_percent >= 0 ? "text-green-500" : "text-red-500"
                           }>
-                            {formatPercent(item.changePercent)}
+                            {formatPercent(item.change_percent)}
                           </span>
                         </div>
                       </TableCell>
@@ -187,31 +187,31 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
                         {formatNumber(item.volume)}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {item.marketCap || "N/A"}
+                        {item.market_cap || "N/A"}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {item.peRatio || "N/A"}
+                        {item.pe_ratio || "N/A"}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
                         {item.pbr || "N/A"}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {item.dividendYield || "N/A"}
+                        {item.dividend_yield || "N/A"}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {item.week52High ? formatPrice(item.week52High, item.country) : "N/A"}
+                        {item.week_52_high ? formatPrice(item.week_52_high, item.country) : "N/A"}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {item.week52Low ? formatPrice(item.week52Low, item.country) : "N/A"}
+                        {item.week_52_low ? formatPrice(item.week_52_low, item.country) : "N/A"}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {item.openPrice ? formatPrice(item.openPrice, item.country) : "N/A"}
+                        {item.eps ? formatPrice(item.eps, item.country) : "N/A"}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {item.highPrice ? formatPrice(item.highPrice, item.country) : "N/A"}
+                        {item.sector || "N/A"}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {item.lowPrice ? formatPrice(item.lowPrice, item.country) : "N/A"}
+                        {item.industry || "N/A"}
                       </TableCell>
                     </TableRow>
                   ))}
