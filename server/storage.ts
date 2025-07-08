@@ -1,38 +1,52 @@
-import { users, type User, type InsertUser } from "@shared/schema";
+import { type StockData, type InsertStockData } from "@shared/schema";
 
 // modify the interface with any CRUD methods
 // you might need
 
 export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  getStockData(id: number): Promise<StockData | undefined>;
+  getStockDataBySymbol(symbol: string): Promise<StockData[]>;
+  createStockData(data: InsertStockData): Promise<StockData>;
+  getAllStockData(): Promise<StockData[]>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<number, User>;
+  private stockData: Map<number, StockData>;
   currentId: number;
 
   constructor() {
-    this.users = new Map();
+    this.stockData = new Map();
     this.currentId = 1;
   }
 
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+  async getStockData(id: number): Promise<StockData | undefined> {
+    return this.stockData.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
+  async getStockDataBySymbol(symbol: string): Promise<StockData[]> {
+    return Array.from(this.stockData.values()).filter(
+      (data) => data.symbol === symbol,
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createStockData(insertData: InsertStockData): Promise<StockData> {
     const id = this.currentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const data: StockData = { 
+      ...insertData, 
+      id,
+      createdAt: new Date(),
+      price: insertData.price ?? null,
+      change: insertData.change ?? null,
+      changePercent: insertData.changePercent ?? null,
+      volume: insertData.volume ?? null,
+      marketCap: insertData.marketCap ?? null,
+    };
+    this.stockData.set(id, data);
+    return data;
+  }
+
+  async getAllStockData(): Promise<StockData[]> {
+    return Array.from(this.stockData.values());
   }
 }
 

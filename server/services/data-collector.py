@@ -36,8 +36,8 @@ def collect_korean_data(start_date, end_date, market):
         else:
             raise ValueError(f"Unknown Korean market: {market}")
         
-        # Limit to top 50 for performance
-        tickers = tickers[:50]
+        # Limit to top 10 for performance and speed
+        tickers = tickers[:10]
         
         for ticker in tickers:
             try:

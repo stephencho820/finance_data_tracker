@@ -4,6 +4,11 @@ import { storage } from "./storage";
 import { dataCollectionRequest, stockDataResponse, quickStatsResponse } from "@shared/schema";
 import { spawn } from "child_process";
 import path from "path";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -13,8 +18,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedRequest = dataCollectionRequest.parse(req.body);
       
       // Spawn Python process for data collection
-      const pythonScript = path.join(__dirname, "services", "data-collector.py");
+      const pythonScript = path.join(__dirname, "services", "data-collector-simple.py");
       const pythonProcess = spawn("python3", [pythonScript]);
+      
+      // Set up timeout (30 seconds)
+      const timeout = setTimeout(() => {
+        pythonProcess.kill();
+        res.status(408).json({
+          success: false,
+          message: "Data collection timed out",
+          error: "The request took too long to process"
+        });
+      }, 30000);
       
       // Send input data to Python process
       pythonProcess.stdin.write(JSON.stringify(validatedRequest));
@@ -32,6 +47,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       pythonProcess.on("close", (code) => {
+        clearTimeout(timeout);
+        
         if (code !== 0) {
           return res.status(500).json({
             success: false,
