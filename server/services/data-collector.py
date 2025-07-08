@@ -51,10 +51,10 @@ def collect_korean_data(start_date, end_date, market):
             
             for ticker in batch:
                 try:
-                    # Get stock info
+                    # Get comprehensive stock info
                     name = pykrx_stock.get_market_ticker_name(ticker)
                     
-                    # Get recent price data (last 5 trading days for better data)
+                    # Get OHLCV data with comprehensive info
                     df = pykrx_stock.get_market_ohlcv_by_date(start_dt.strftime('%Y%m%d'), 
                                                             end_dt.strftime('%Y%m%d'), 
                                                             ticker)
@@ -68,9 +68,15 @@ def collect_korean_data(start_date, end_date, market):
                         change = current_price - prev_price
                         change_percent = (change / prev_price * 100) if prev_price != 0 else 0
                         
-                        # Get market cap - handle errors gracefully
+                        # Get comprehensive market data
                         market_cap = "N/A"
+                        shares_outstanding = "N/A"
+                        pe_ratio = "N/A"
+                        pbr = "N/A"
+                        dividend_yield = "N/A"
+                        
                         try:
+                            # Market capitalization and shares
                             market_cap_raw = pykrx_stock.get_market_cap_by_date(
                                 end_dt.strftime('%Y%m%d'), 
                                 end_dt.strftime('%Y%m%d'), 
@@ -78,10 +84,62 @@ def collect_korean_data(start_date, end_date, market):
                             )
                             if not market_cap_raw.empty:
                                 cap_value = market_cap_raw.iloc[0]['시가총액']
+                                shares_value = market_cap_raw.iloc[0]['상장주식수']
+                                
                                 if cap_value > 1e12:
                                     market_cap = f"{cap_value/1e12:.1f}조원"
                                 elif cap_value > 1e8:
                                     market_cap = f"{cap_value/1e8:.0f}억원"
+                                
+                                if shares_value > 1e8:
+                                    shares_outstanding = f"{shares_value/1e8:.0f}억주"
+                                elif shares_value > 1e4:
+                                    shares_outstanding = f"{shares_value/1e4:.0f}만주"
+                        except:
+                            pass
+                        
+                        try:
+                            # Get fundamental data (PER, PBR, etc.)
+                            fundamental_raw = pykrx_stock.get_market_fundamental_by_date(
+                                end_dt.strftime('%Y%m%d'), 
+                                end_dt.strftime('%Y%m%d'), 
+                                ticker
+                            )
+                            if not fundamental_raw.empty:
+                                fund_data = fundamental_raw.iloc[0]
+                                pe_ratio = fund_data.get('PER', 'N/A')
+                                pbr = fund_data.get('PBR', 'N/A')
+                                dividend_yield = fund_data.get('DIV', 'N/A')
+                                
+                                # Format dividend yield as percentage
+                                if dividend_yield != 'N/A' and dividend_yield > 0:
+                                    dividend_yield = f"{dividend_yield:.2f}%"
+                        except:
+                            pass
+                        
+                        # Get trading value info
+                        trading_value = "N/A"
+                        try:
+                            trading_value_raw = latest.get('거래대금', 0)
+                            if trading_value_raw > 1e8:
+                                trading_value = f"{trading_value_raw/1e8:.0f}억원"
+                            elif trading_value_raw > 1e4:
+                                trading_value = f"{trading_value_raw/1e4:.0f}만원"
+                        except:
+                            pass
+                        
+                        # Get 52-week high/low from historical data
+                        week_52_high = "N/A"
+                        week_52_low = "N/A"
+                        try:
+                            # Get 1 year of data for 52-week calculation
+                            year_ago = (end_dt - timedelta(days=365)).strftime('%Y%m%d')
+                            year_df = pykrx_stock.get_market_ohlcv_by_date(year_ago, 
+                                                                          end_dt.strftime('%Y%m%d'), 
+                                                                          ticker)
+                            if not year_df.empty:
+                                week_52_high = float(year_df['고가'].max())
+                                week_52_low = float(year_df['저가'].min())
                         except:
                             pass
                         
@@ -93,6 +151,16 @@ def collect_korean_data(start_date, end_date, market):
                             'changePercent': float(change_percent),
                             'volume': int(latest['거래량']),
                             'marketCap': market_cap,
+                            'peRatio': pe_ratio if pe_ratio != 'N/A' else None,
+                            'pbr': pbr if pbr != 'N/A' else None,
+                            'dividendYield': dividend_yield,
+                            'week52High': week_52_high if week_52_high != 'N/A' else None,
+                            'week52Low': week_52_low if week_52_low != 'N/A' else None,
+                            'sharesOutstanding': shares_outstanding,
+                            'tradingValue': trading_value,
+                            'openPrice': float(latest['시가']),
+                            'highPrice': float(latest['고가']),
+                            'lowPrice': float(latest['저가']),
                             'country': 'korea',
                             'market': market_name,
                             'date': end_date

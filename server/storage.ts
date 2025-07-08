@@ -33,6 +33,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createManyStockData(insertData: InsertStockData[]): Promise<StockData[]> {
+    if (!insertData || insertData.length === 0) {
+      return [];
+    }
     const data = await db
       .insert(stockData)
       .values(insertData)
