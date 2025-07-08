@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import traceback
 
-def collect_korean_data(start_date, end_date, market):
+def collect_korean_data(start_date, end_date, market, sort_by=None, limit=None):
     """Collect Korean stock data using pykrx"""
     try:
         import pykrx.stock as stock
@@ -41,8 +41,9 @@ def collect_korean_data(start_date, end_date, market):
         else:
             raise ValueError(f"Unknown Korean market: {market}")
         
-        # Reasonable limit for performance - prevent timeout
-        tickers = tickers[:30]
+        # Apply custom limit or use default for performance
+        max_tickers = limit if limit and limit <= 50 else 15
+        tickers = tickers[:max_tickers]
         
         # Process stocks in smaller batches for better performance
         batch_size = 10
@@ -169,13 +170,29 @@ def collect_korean_data(start_date, end_date, market):
             # Add delay between batches to avoid overwhelming the API
             import time
             time.sleep(0.5)
+        
+        # Sort data by specified criteria
+        if sort_by and data:
+            reverse_sort = True  # Default to descending order for most financial metrics
+            if sort_by == 'current_price':
+                data.sort(key=lambda x: x.get('current_price', 0), reverse=reverse_sort)
+            elif sort_by == 'market_cap':
+                data.sort(key=lambda x: x.get('market_cap', 0), reverse=reverse_sort)
+            elif sort_by == 'pe_ratio':
+                data.sort(key=lambda x: x.get('pe_ratio', 0) if x.get('pe_ratio', 0) != 0 else float('inf'), reverse=False)
+            elif sort_by == 'pbr':
+                data.sort(key=lambda x: x.get('pbr', 0) if x.get('pbr', 0) != 0 else float('inf'), reverse=False)
+            elif sort_by == 'dividend_yield':
+                data.sort(key=lambda x: x.get('dividend_yield', 0), reverse=reverse_sort)
+            elif sort_by == 'volume':
+                data.sort(key=lambda x: x.get('volume', 0), reverse=reverse_sort)
                 
         return data
         
     except Exception as e:
         raise Exception(f"Error collecting Korean data: {str(e)}")
 
-def collect_us_data(start_date, end_date, market):
+def collect_us_data(start_date, end_date, market, sort_by=None, limit=None):
     """Collect US stock data using yfinance"""
     try:
         import yfinance as yf
@@ -199,6 +216,10 @@ def collect_us_data(start_date, end_date, market):
         
         symbols = market_symbols[market]
         
+        # Apply custom limit or use default for performance
+        max_symbols = limit if limit and limit <= 50 else 10
+        symbols = symbols[:max_symbols]
+        
         # Process symbols in smaller batches for better performance
         batch_size = 5
         for i in range(0, len(symbols), batch_size):
@@ -207,75 +228,68 @@ def collect_us_data(start_date, end_date, market):
             for symbol in batch:
                 try:
                     ticker = yf.Ticker(symbol)
-                
-                # Get historical data
-                hist = ticker.history(start=start_date, end=end_date)
-                
-                if not hist.empty:
-                    latest = hist.iloc[-1]
-                    prev = hist.iloc[-2] if len(hist) > 1 else latest
                     
-                    current_price = latest['Close']
-                    prev_price = prev['Close']
-                    change = current_price - prev_price
-                    change_percent = (change / prev_price * 100) if prev_price != 0 else 0
+                    # Get historical data
+                    hist = ticker.history(start=start_date, end=end_date)
                     
-                    # Get comprehensive info
-                    info = ticker.info
-                    name = info.get('longName', info.get('shortName', symbol))
-                    
-                    # Market cap
-                    market_cap = "N/A"
-                    if 'marketCap' in info and info['marketCap']:
-                        cap_value = info['marketCap']
-                        if cap_value > 1e12:
-                            market_cap = f"${cap_value/1e12:.1f}T"
-                        elif cap_value > 1e9:
-                            market_cap = f"${cap_value/1e9:.1f}B"
-                        elif cap_value > 1e6:
-                            market_cap = f"${cap_value/1e6:.1f}M"
-                    
-                    # Get additional financial metrics
-                    pe_ratio = info.get('trailingPE', 'N/A')
-                    dividend_yield = info.get('dividendYield', 'N/A')
-                    if isinstance(dividend_yield, (int, float)):
-                        dividend_yield = f"{dividend_yield*100:.2f}%"
-                    
-                    # Get 52-week high/low
-                    week_52_high = info.get('fiftyTwoWeekHigh', 'N/A')
-                    week_52_low = info.get('fiftyTwoWeekLow', 'N/A')
-                    
-                    # Get sector and industry
-                    sector = info.get('sector', 'N/A')
-                    industry = info.get('industry', 'N/A')
-                    
-                    # Get beta (volatility measure)
-                    beta = info.get('beta', 'N/A')
-                    
-                    # Get earnings per share
-                    eps = info.get('trailingEps', 'N/A')
-                    
-                    data.append({
-                        'symbol': symbol,
-                        'name': name,
-                        'price': float(current_price),
-                        'change': float(change),
-                        'changePercent': float(change_percent),
-                        'volume': int(latest['Volume']),
-                        'marketCap': market_cap,
-                        'peRatio': pe_ratio if pe_ratio != 'N/A' else 'N/A',
-                        'dividendYield': dividend_yield,
-                        'week52High': week_52_high if week_52_high != 'N/A' else 'N/A',
-                        'week52Low': week_52_low if week_52_low != 'N/A' else 'N/A',
-                        'sector': sector,
-                        'industry': industry,
-                        'beta': beta if beta != 'N/A' else 'N/A',
-                        'eps': eps if eps != 'N/A' else 'N/A',
-                        'country': 'usa',
-                        'market': market.upper(),
-                        'date': end_date
-                    })
-                    
+                    if not hist.empty:
+                        latest = hist.iloc[-1]
+                        prev = hist.iloc[-2] if len(hist) > 1 else latest
+                        
+                        current_price = latest['Close']
+                        prev_price = prev['Close']
+                        change = current_price - prev_price
+                        change_percent = (change / prev_price * 100) if prev_price != 0 else 0
+                        
+                        # Get comprehensive info
+                        info = ticker.info
+                        name = info.get('longName', info.get('shortName', symbol))
+                        
+                        # Use available data from history for 52-week high/low
+                        week_52_high = hist['High'].max()
+                        week_52_low = hist['Low'].min()
+                        
+                        data.append({
+                            'symbol': symbol,
+                            'name': name,
+                            'current_price': round(current_price, 2),
+                            'change': round(change, 2),
+                            'change_percent': round(change_percent, 2),
+                            'volume': int(latest['Volume']) if latest['Volume'] else 0,
+                            'market_cap': info.get('marketCap', 0),
+                            'pe_ratio': info.get('forwardPE', info.get('trailingPE', 0)),
+                            'pbr': info.get('priceToBook', 0),
+                            'eps': info.get('trailingEps', 0),
+                            'dividend_yield': info.get('dividendYield', 0),
+                            'week_52_high': round(week_52_high, 2) if week_52_high else 0,
+                            'week_52_low': round(week_52_low, 2) if week_52_low else 0,
+                            'beta': info.get('beta', 0),
+                            'shares_outstanding': info.get('sharesOutstanding', 0),
+                            'book_value': info.get('bookValue', 0),
+                            'revenue': info.get('totalRevenue', 0),
+                            'net_income': info.get('netIncomeToCommon', 0),
+                            'debt_to_equity': info.get('debtToEquity', 0),
+                            'roe': info.get('returnOnEquity', 0),
+                            'roa': info.get('returnOnAssets', 0),
+                            'operating_margin': info.get('operatingMargins', 0),
+                            'profit_margin': info.get('profitMargins', 0),
+                            'revenue_growth': info.get('revenueGrowth', 0),
+                            'earnings_growth': info.get('earningsGrowth', 0),
+                            'current_ratio': info.get('currentRatio', 0),
+                            'quick_ratio': info.get('quickRatio', 0),
+                            'price_to_sales': info.get('priceToSalesTrailing12Months', 0),
+                            'price_to_cash_flow': info.get('priceToFreeCashflow', 0),
+                            'enterprise_value': info.get('enterpriseValue', 0),
+                            'ev_to_revenue': info.get('enterpriseToRevenue', 0),
+                            'ev_to_ebitda': info.get('enterpriseToEbitda', 0),
+                            'free_cash_flow': info.get('freeCashflow', 0),
+                            'sector': info.get('sector', ''),
+                            'industry': info.get('industry', ''),
+                            'country': 'USA',
+                            'market': market.upper(),
+                            'date': end_date
+                        })
+                        
                 except Exception as e:
                     # Skip individual stock errors but continue processing
                     continue
@@ -283,6 +297,22 @@ def collect_us_data(start_date, end_date, market):
             # Add delay between batches to avoid rate limiting
             import time
             time.sleep(0.5)
+        
+        # Sort data by specified criteria
+        if sort_by and data:
+            reverse_sort = True  # Default to descending order for most financial metrics
+            if sort_by == 'current_price':
+                data.sort(key=lambda x: x.get('current_price', 0), reverse=reverse_sort)
+            elif sort_by == 'market_cap':
+                data.sort(key=lambda x: x.get('market_cap', 0), reverse=reverse_sort)
+            elif sort_by == 'pe_ratio':
+                data.sort(key=lambda x: x.get('pe_ratio', 0) if x.get('pe_ratio', 0) != 0 else float('inf'), reverse=False)
+            elif sort_by == 'pbr':
+                data.sort(key=lambda x: x.get('pbr', 0) if x.get('pbr', 0) != 0 else float('inf'), reverse=False)
+            elif sort_by == 'dividend_yield':
+                data.sort(key=lambda x: x.get('dividend_yield', 0), reverse=reverse_sort)
+            elif sort_by == 'volume':
+                data.sort(key=lambda x: x.get('volume', 0), reverse=reverse_sort)
                 
         return data
         
@@ -298,11 +328,13 @@ def main():
         end_date = input_data['endDate']
         country = input_data['country']
         market = input_data['market']
+        sort_by = input_data.get('sortBy')
+        limit = input_data.get('limit')
         
         if country == 'korea':
-            data = collect_korean_data(start_date, end_date, market)
+            data = collect_korean_data(start_date, end_date, market, sort_by, limit)
         elif country == 'usa':
-            data = collect_us_data(start_date, end_date, market)
+            data = collect_us_data(start_date, end_date, market, sort_by, limit)
         else:
             raise ValueError(f"Unknown country: {country}")
         

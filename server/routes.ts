@@ -18,7 +18,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedRequest = dataCollectionRequest.parse(req.body);
       
       // Spawn Python process for data collection
-      const pythonScript = path.join(__dirname, "services", "data-collector.py");
+      const pythonScript = path.join(__dirname, "services", "data-collector-simple.py");
       const pythonProcess = spawn("python3", [pythonScript]);
       
       // Set up timeout (2 minutes for comprehensive data collection)

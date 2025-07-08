@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { dataCollectionRequest, type DataCollectionRequest, type StockDataResponse } from "@shared/schema";
-import { Calendar, ChartLine, Download, Flag, RotateCcw } from "lucide-react";
+import { Calendar, ChartLine, Download, Flag, RotateCcw, Filter, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DataCollectionFormProps {
@@ -31,6 +32,15 @@ const usMarkets = [
   { id: "russell", name: "Russell 2000", description: "^RUT" },
 ];
 
+const sortOptions = [
+  { id: "market_cap", name: "시가총액", description: "Market Cap" },
+  { id: "pe_ratio", name: "PER", description: "P/E Ratio" },
+  { id: "pbr", name: "PBR", description: "Price-to-Book Ratio" },
+  { id: "dividend_yield", name: "배당수익률", description: "Dividend Yield" },
+  { id: "volume", name: "거래량", description: "Volume" },
+  { id: "current_price", name: "현재가", description: "Current Price" },
+];
+
 export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps) {
   const [selectedCountry, setSelectedCountry] = useState<"korea" | "usa">("korea");
   const [selectedMarket, setSelectedMarket] = useState("kospi");
@@ -43,6 +53,8 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
       endDate: "2024-12-31",
       country: "korea",
       market: "kospi",
+      sortBy: "market_cap",
+      limit: 20,
     },
   });
 
@@ -207,6 +219,68 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
                   </Button>
                 ))}
               </div>
+            </div>
+
+            {/* Sort and Limit Options */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="sortBy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-300 flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      정렬 기준
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
+                          <SelectValue placeholder="정렬 기준 선택" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-slate-800 border-slate-600">
+                        {sortOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id} className="text-white hover:bg-slate-700">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{option.name}</span>
+                              <span className="text-xs text-slate-400">{option.description}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="limit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-300 flex items-center gap-2">
+                      <Hash className="h-4 w-4" />
+                      수집 수량
+                    </FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="100"
+                          {...field}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          className="bg-slate-800 border-slate-600 text-white"
+                          placeholder="수집할 주식 수량"
+                        />
+                        <span className="absolute right-3 top-3 text-xs text-slate-400">
+                          개
+                        </span>
+                      </div>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Action Buttons */}
