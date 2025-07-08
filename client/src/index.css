@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(210, 40%, 98%);
+  --foreground: hsl(222.2, 84%, 4.9%);
+  --muted: hsl(210, 40%, 96%);
+  --muted-foreground: hsl(215.4, 16.3%, 46.9%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(222.2, 84%, 4.9%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(222.2, 84%, 4.9%);
+  --border: hsl(214.3, 31.8%, 91.4%);
+  --input: hsl(214.3, 31.8%, 91.4%);
+  --primary: hsl(221.2, 83.2%, 53.3%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(210, 40%, 96%);
+  --secondary-foreground: hsl(222.2, 84%, 4.9%);
+  --accent: hsl(210, 40%, 96%);
+  --accent-foreground: hsl(222.2, 84%, 4.9%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --ring: hsl(221.2, 83.2%, 53.3%);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: hsl(222.2, 84%, 4.9%);
+  --foreground: hsl(210, 40%, 98%);
+  --muted: hsl(217.2, 32.6%, 17.5%);
+  --muted-foreground: hsl(215, 20.2%, 65.1%);
+  --popover: hsl(222.2, 84%, 4.9%);
+  --popover-foreground: hsl(210, 40%, 98%);
+  --card: hsl(222.2, 84%, 4.9%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --border: hsl(217.2, 32.6%, 17.5%);
+  --input: hsl(217.2, 32.6%, 17.5%);
+  --primary: hsl(217.2, 91.2%, 59.8%);
+  --primary-foreground: hsl(222.2, 84%, 4.9%);
+  --secondary: hsl(217.2, 32.6%, 17.5%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+  --accent: hsl(217.2, 32.6%, 17.5%);
+  --accent-foreground: hsl(210, 40%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --ring: hsl(217.2, 91.2%, 59.8%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom scrollbar for dark theme */
+.dark {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(215, 20.2%, 65.1%) hsl(217.2, 32.6%, 17.5%);
+}
+
+.dark::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark::-webkit-scrollbar-track {
+  background: hsl(217.2, 32.6%, 17.5%);
+}
+
+.dark::-webkit-scrollbar-thumb {
+  background: hsl(215, 20.2%, 65.1%);
+  border-radius: 4px;
+}
+
+.dark::-webkit-scrollbar-thumb:hover {
+  background: hsl(215, 20.2%, 55.1%);
+}
+
+/* Trading specific styles */
+.trading-card {
+  background: hsl(222.2, 84%, 4.9%);
+  border: 1px solid hsl(217.2, 32.6%, 17.5%);
+}
+
+.trading-input {
+  background: hsl(217.2, 32.6%, 17.5%);
+  border: 1px solid hsl(215, 20.2%, 25.1%);
+  color: hsl(210, 40%, 98%);
+}
+
+.trading-input:focus {
+  outline: none;
+  ring: 2px solid hsl(217.2, 91.2%, 59.8%);
+  border-color: transparent;
+}
+
+.trading-button-primary {
+  background: hsl(217.2, 91.2%, 59.8%);
+  color: hsl(222.2, 84%, 4.9%);
+}
+
+.trading-button-primary:hover {
+  background: hsl(217.2, 91.2%, 54.8%);
+}
+
+.trading-button-secondary {
+  background: hsl(217.2, 32.6%, 17.5%);
+  color: hsl(210, 40%, 98%);
+  border: 1px solid hsl(215, 20.2%, 25.1%);
+}
+
+.trading-button-secondary:hover {
+  background: hsl(217.2, 32.6%, 22.5%);
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 2px solid hsl(217.2, 32.6%, 17.5%);
+  border-top: 2px solid hsl(217.2, 91.2%, 59.8%);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Table styles */
+.trading-table {
+  background: hsl(222.2, 84%, 4.9%);
+}
+
+.trading-table th {
+  background: hsl(217.2, 32.6%, 17.5%);
+  color: hsl(215, 20.2%, 65.1%);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trading-table td {
+  border-bottom: 1px solid hsl(217.2, 32.6%, 17.5%);
+}
+
+.trading-table tr:hover {
+  background: hsl(217.2, 32.6%, 17.5%);
+}
+
+/* Status colors */
+.status-positive {
+  color: hsl(142.1, 76.2%, 36.3%);
+}
+
+.status-negative {
+  color: hsl(0, 84.2%, 60.2%);
+}
+
+.status-neutral {
+  color: hsl(215, 20.2%, 65.1%);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .trading-table {
+    font-size: 0.875rem;
+  }
+  
+  .trading-card {
+    padding: 1rem;
+  }
+}
