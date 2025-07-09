@@ -1,6 +1,6 @@
 import { stockData, dailyStockData, type StockData, type InsertStockData, type DailyStockData, type InsertDailyStockData } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -15,6 +15,8 @@ export interface IStorage {
   // Daily Stock Data methods
   getDailyStockData(id: number): Promise<DailyStockData | undefined>;
   getDailyStockDataBySymbol(symbol: string): Promise<DailyStockData[]>;
+  getDailyStockDataByDate(date: string): Promise<DailyStockData[]>;
+  getDailyStockDataByMarketAndRank(market: string, rankType: string, date: string): Promise<DailyStockData[]>;
   createDailyStockData(data: InsertDailyStockData): Promise<DailyStockData>;
   getAllDailyStockData(): Promise<DailyStockData[]>;
   createManyDailyStockData(data: InsertDailyStockData[]): Promise<DailyStockData[]>;
@@ -63,6 +65,24 @@ export class DatabaseStorage implements IStorage {
 
   async getDailyStockDataBySymbol(symbol: string): Promise<DailyStockData[]> {
     const result = await db.select().from(dailyStockData).where(eq(dailyStockData.symbol, symbol)).orderBy(desc(dailyStockData.date));
+    return result;
+  }
+
+  async getDailyStockDataByDate(date: string): Promise<DailyStockData[]> {
+    const result = await db.select().from(dailyStockData).where(eq(dailyStockData.date, date));
+    return result;
+  }
+
+  async getDailyStockDataByMarketAndRank(market: string, rankType: string, date: string): Promise<DailyStockData[]> {
+    const result = await db.select().from(dailyStockData)
+      .where(
+        and(
+          eq(dailyStockData.market, market),
+          eq(dailyStockData.rank_type, rankType),
+          eq(dailyStockData.date, date)
+        )
+      )
+      .orderBy(dailyStockData.rank);
     return result;
   }
 

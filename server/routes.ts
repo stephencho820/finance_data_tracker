@@ -348,6 +348,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Daily stock data endpoint
+  app.get("/api/daily-stock-data", async (req, res) => {
+    try {
+      const { date, market, rank_type } = req.query;
+      
+      if (date && market && rank_type) {
+        const data = await storage.getDailyStockDataByMarketAndRank(
+          market as string, 
+          rank_type as string, 
+          date as string
+        );
+        res.json(data);
+      } else if (date) {
+        const data = await storage.getDailyStockDataByDate(date as string);
+        res.json(data);
+      } else {
+        const data = await storage.getAllDailyStockData();
+        res.json(data);
+      }
+    } catch (error) {
+      console.error("Error getting daily stock data:", error);
+      res.status(500).json({ error: "Failed to get daily stock data" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

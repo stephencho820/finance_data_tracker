@@ -51,15 +51,15 @@ export const dailyStockData = pgTable("daily_stock_data", {
   symbol: text("symbol").notNull(),
   name: text("name").notNull(),
   date: date("date").notNull(),
+  market: text("market").notNull(), // KOSPI, KOSDAQ
+  rank_type: text("rank_type").notNull(), // market_cap, volume
+  rank: integer("rank").notNull(),
   open_price: decimal("open_price", { precision: 10, scale: 2 }),
   high_price: decimal("high_price", { precision: 10, scale: 2 }),
   low_price: decimal("low_price", { precision: 10, scale: 2 }),
   close_price: decimal("close_price", { precision: 10, scale: 2 }),
   volume: integer("volume"),
   market_cap: text("market_cap"),
-  market: text("market").notNull(), // KOSPI, KOSDAQ
-  rank_by_market_cap: integer("rank_by_market_cap"),
-  rank_by_volume: integer("rank_by_volume"),
   best_k_value: decimal("best_k_value", { precision: 10, scale: 4 }), // 알고리즘 계산 결과
   createdAt: timestamp("created_at").defaultNow(),
 });
