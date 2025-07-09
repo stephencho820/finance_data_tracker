@@ -19,28 +19,29 @@ def collect_korean_data(start_date, end_date, market, sort_by=None, limit=None):
         
         data = []
         
-        # Get tickers - limit to top ones only
+        # Get tickers based on market selection
         if market == 'kospi':
-            # Get only the top 3 KOSPI stocks by market cap
-            top_tickers = ['005930', '000660', '035420']  # Samsung, SK Hynix, NAVER
+            all_tickers = pykrx_stock.get_market_ticker_list(end_date_fmt, market="KOSPI")
             market_name = "KOSPI"
         elif market == 'kosdaq':
-            # Get only the top 3 KOSDAQ stocks
-            top_tickers = ['068270', '035720', '096770']  # Celltrion, Kakao, SK Innovation
+            all_tickers = pykrx_stock.get_market_ticker_list(end_date_fmt, market="KOSDAQ")
             market_name = "KOSDAQ"
+        elif market == 'konex':
+            all_tickers = pykrx_stock.get_market_ticker_list(end_date_fmt, market="KONEX")
+            market_name = "KONEX"
+        elif market == 'etf':
+            all_tickers = pykrx_stock.get_etf_ticker_list(end_date_fmt)
+            market_name = "ETF"
         else:
-            # For other markets, get a few representative tickers
-            try:
-                all_tickers = pykrx_stock.get_market_ticker_list(end_date_fmt, market="KOSPI")
-                top_tickers = all_tickers[:3]
-                market_name = market.upper()
-            except:
-                top_tickers = ['005930', '000660', '035420']  # Fallback
-                market_name = market.upper()
+            # Default to KOSPI if unknown market
+            all_tickers = pykrx_stock.get_market_ticker_list(end_date_fmt, market="KOSPI")
+            market_name = "KOSPI"
         
-        # Limit based on user request
-        max_tickers = min(limit if limit and limit <= 5 else 3, len(top_tickers))
-        selected_tickers = top_tickers[:max_tickers]
+        print(f"[INFO] Found {len(all_tickers)} tickers in {market_name}", file=sys.stderr)
+        
+        # Apply user-specified limit
+        max_tickers = min(limit if limit and limit <= 50 else 10, len(all_tickers))
+        selected_tickers = all_tickers[:max_tickers]
         
         print(f"[INFO] Processing {len(selected_tickers)} tickers...", file=sys.stderr)
         
@@ -154,8 +155,45 @@ def collect_korean_data(start_date, end_date, market, sort_by=None, limit=None):
         
         print(f"[INFO] Collected {len(data)} records", file=sys.stderr)
         
-        # Sort data if requested
+        # First, get additional data for sorting if needed
+        if sort_by and sort_by in ['market_cap', 'pe_ratio', 'pbr'] and data:
+            print(f"[INFO] Getting additional data for sorting by {sort_by}", file=sys.stderr)
+            
+            for i, item in enumerate(data):
+                ticker = item['symbol']
+                try:
+                    # Get market cap and fundamentals for sorting
+                    if sort_by == 'market_cap' and not item.get('market_cap'):
+                        try:
+                            cap_df = pykrx_stock.get_market_cap_by_date(end_date_fmt, end_date_fmt, ticker)
+                            if not cap_df.empty:
+                                item['market_cap'] = int(cap_df.iloc[0]['시가총액'])
+                                item['shares_outstanding'] = int(cap_df.iloc[0]['상장주식수'])
+                        except:
+                            item['market_cap'] = 0
+                    
+                    if sort_by in ['pe_ratio', 'pbr'] and not item.get(sort_by):
+                        try:
+                            fund_df = pykrx_stock.get_market_fundamental_by_date(end_date_fmt, end_date_fmt, ticker)
+                            if not fund_df.empty:
+                                if sort_by == 'pe_ratio':
+                                    item['pe_ratio'] = fund_df.iloc[0].get('PER')
+                                elif sort_by == 'pbr':
+                                    item['pbr'] = fund_df.iloc[0].get('PBR')
+                                item['dividend_yield'] = fund_df.iloc[0].get('DIV')
+                        except:
+                            pass
+                    
+                    if i % 10 == 0:  # Progress update every 10 items
+                        print(f"[INFO] Processed {i+1}/{len(data)} items for sorting", file=sys.stderr)
+                        
+                except Exception as e:
+                    print(f"[WARNING] Error getting additional data for {ticker}: {e}", file=sys.stderr)
+                    continue
+        
+        # Sort data based on user selection
         if sort_by and data:
+            print(f"[INFO] Sorting data by {sort_by}", file=sys.stderr)
             if sort_by == 'market_cap':
                 data.sort(key=lambda x: x.get('market_cap', 0) or 0, reverse=True)
             elif sort_by == 'current_price':
@@ -180,20 +218,38 @@ def collect_us_data(start_date, end_date, market, sort_by=None, limit=None):
     try:
         import yfinance as yf
         
-        # Define popular tickers for each market
+        # Define comprehensive tickers for each market
         if market == 'sp500':
-            tickers = ['AAPL', 'MSFT', 'GOOGL']
+            tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'BRK-B', 'V', 'JNJ', 
+                      'WMT', 'JPM', 'PG', 'UNH', 'HD', 'CVX', 'MA', 'PFE', 'BAC', 'ABBV', 'KO', 'AVGO',
+                      'PEP', 'COST', 'TMO', 'DHR', 'ABT', 'VZ', 'ADBE', 'NKE', 'CRM', 'LLY', 'CMCSA',
+                      'NFLX', 'INTC', 'T', 'AMD', 'TXN', 'QCOM', 'NEE', 'HON', 'PM', 'UNP', 'IBM', 'RTX',
+                      'LOW', 'SPGI', 'INTU', 'GS', 'CAT', 'AMGN', 'ISRG', 'BKNG', 'DE', 'AXP', 'MDLZ',
+                      'BLK', 'GILD', 'MU', 'TJX', 'SCHW', 'CVS', 'LRCX', 'TMUS', 'ADP', 'VRTX', 'REGN',
+                      'ZTS', 'PYPL', 'CHTR', 'AMAT', 'MMM', 'SYK', 'EOG', 'EQIX', 'BSX', 'KLAC', 'DUK',
+                      'PLD', 'SO', 'MO', 'ICE', 'ATVI', 'ITW', 'CME', 'WM', 'NOC', 'APD', 'TFC', 'ECL',
+                      'SHW', 'MMC', 'FDX', 'GD', 'NSC', 'USB', 'CL', 'AON', 'BIIB', 'BDX', 'CSX', 'MCO']
         elif market == 'nasdaq':
-            tickers = ['AAPL', 'MSFT', 'GOOGL']
+            tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'AVGO', 'NFLX', 'ADBE',
+                      'CRM', 'PYPL', 'INTC', 'CMCSA', 'PEP', 'COST', 'CSCO', 'TXN', 'QCOM', 'AMGN',
+                      'INTU', 'ISRG', 'BKNG', 'MU', 'GILD', 'REGN', 'VRTX', 'LRCX', 'AMAT', 'KLAC',
+                      'ATVI', 'CHTR', 'MELI', 'MRVL', 'ORLY', 'CTAS', 'NTES', 'WDAY', 'FAST', 'PAYX',
+                      'VRSK', 'EBAY', 'MNST', 'CTSH', 'DXCM', 'SPLK', 'ROST', 'PCAR', 'SNPS', 'CDNS']
         elif market == 'dow':
-            tickers = ['AAPL', 'MSFT', 'UNH']
+            tickers = ['AAPL', 'MSFT', 'UNH', 'GS', 'HD', 'CAT', 'AMGN', 'MCD', 'V', 'BA', 'CRM',
+                      'TRV', 'AXP', 'JPM', 'JNJ', 'WMT', 'CVX', 'NKE', 'PG', 'IBM', 'MMM', 'DIS',
+                      'MRK', 'KO', 'HON', 'VZ', 'CSCO', 'WBA', 'DOW', 'INTC']
         elif market == 'russell2000':
-            tickers = ['IWM', 'VTWO', 'URTY']
+            tickers = ['IWM', 'VTWO', 'URTY', 'TNA', 'SCHA', 'VTI', 'ITOT', 'SPTM', 'SCHB', 'VEA',
+                      'SPYG', 'SPYV', 'VTV', 'VUG', 'VMOT', 'VTEB', 'VXUS', 'VT', 'VTIAX', 'VTSAX',
+                      'VTISX', 'VTWSX', 'VGTSX', 'VGSLX', 'VGSTX', 'VEURX', 'VPADX', 'VWELX', 'VWINX',
+                      'VWUSX', 'VFICX', 'VUSTX', 'VUSUX', 'VSGDX', 'VSGIX', 'VSIGX', 'VSIIX', 'VSCIX',
+                      'VSCGX', 'VSCVX', 'VSMAX', 'VSMGX', 'VSMVX', 'VSMLX', 'VSMCX', 'VSMIX', 'VSMKX']
         else:
-            tickers = ['AAPL', 'MSFT', 'GOOGL']
+            tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'BRK-B', 'V', 'JNJ']
         
-        # Limit tickers
-        max_tickers = min(limit if limit and limit <= 5 else 3, len(tickers))
+        # Apply user-specified limit
+        max_tickers = min(limit if limit and limit <= 50 else 10, len(tickers))
         selected_tickers = tickers[:max_tickers]
         
         data = []
@@ -258,6 +314,21 @@ def collect_us_data(start_date, end_date, market, sort_by=None, limit=None):
                     
             except Exception as e:
                 continue
+        
+        # Sort data based on user selection
+        if sort_by and data:
+            if sort_by == 'market_cap':
+                data.sort(key=lambda x: x.get('market_cap', 0), reverse=True)
+            elif sort_by == 'current_price':
+                data.sort(key=lambda x: x.get('current_price', 0), reverse=True)
+            elif sort_by == 'pe_ratio':
+                data.sort(key=lambda x: x.get('pe_ratio', 0) if x.get('pe_ratio', 0) != 0 else float('inf'), reverse=False)
+            elif sort_by == 'pbr':
+                data.sort(key=lambda x: x.get('pbr', 0) if x.get('pbr', 0) != 0 else float('inf'), reverse=False)
+            elif sort_by == 'dividend_yield':
+                data.sort(key=lambda x: x.get('dividend_yield', 0), reverse=True)
+            elif sort_by == 'volume':
+                data.sort(key=lambda x: x.get('volume', 0), reverse=True)
         
         return data
         
