@@ -50,8 +50,8 @@ export const dataCollectionRequest = z.object({
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   country: z.enum(["korea", "usa"]),
   market: z.string(),
-  sortBy: z.enum(['market_cap', 'pe_ratio', 'pbr', 'dividend_yield', 'volume', 'current_price']).optional(),
-  limit: z.number().min(1).max(100).optional(),
+  sortBy: z.enum(['market_cap', 'volume']).optional(),
+  limit: z.number().min(1).max(500).optional(),
 });
 
 export const stockDataResponse = z.object({

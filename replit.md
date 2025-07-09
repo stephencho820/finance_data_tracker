@@ -119,6 +119,13 @@ Changelog:
   - Supports both Korean (pykrx) and US (yfinance) stock data
   - Added comprehensive financial metrics (35+ fields)
   - Implemented sorting and filtering capabilities
+- July 09, 2025. User interface improvements:
+  - Updated default date range: start date = today - 2 days, end date = today - 1 day
+  - Restricted country selection to Korea only
+  - Limited market selection to KOSPI and KOSDAQ only
+  - Reduced sorting options to market cap and volume only
+  - Increased default collection limit from 20 to 500 stocks
+  - Enhanced form validation and error handling
 ```
 
 ## User Preferences

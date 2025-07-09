@@ -14,6 +14,21 @@ import { dataCollectionRequest, type DataCollectionRequest, type StockDataRespon
 import { Calendar, ChartLine, Download, Flag, RotateCcw, Filter, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// 기본 날짜 계산 함수
+function getDefaultDates() {
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setDate(today.getDate() - 1); // 어제
+  
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - 2); // 2일 전
+  
+  return {
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0]
+  };
+}
+
 interface DataCollectionFormProps {
   onDataCollected: (data: StockDataResponse[]) => void;
 }
@@ -21,24 +36,11 @@ interface DataCollectionFormProps {
 const koreanMarkets = [
   { id: "kospi", name: "KOSPI", description: "코스피" },
   { id: "kosdaq", name: "KOSDAQ", description: "코스닥" },
-  { id: "konex", name: "KONEX", description: "코넥스" },
-  { id: "etf", name: "ETF", description: "상장지수펀드" },
-];
-
-const usMarkets = [
-  { id: "sp500", name: "S&P 500", description: "^GSPC" },
-  { id: "nasdaq", name: "NASDAQ", description: "^IXIC" },
-  { id: "dow", name: "Dow Jones", description: "^DJI" },
-  { id: "russell", name: "Russell 2000", description: "^RUT" },
 ];
 
 const sortOptions = [
   { id: "market_cap", name: "시가총액", description: "Market Cap" },
-  { id: "pe_ratio", name: "PER", description: "P/E Ratio" },
-  { id: "pbr", name: "PBR", description: "Price-to-Book Ratio" },
-  { id: "dividend_yield", name: "배당수익률", description: "Dividend Yield" },
   { id: "volume", name: "거래량", description: "Volume" },
-  { id: "current_price", name: "현재가", description: "Current Price" },
 ];
 
 export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps) {
@@ -46,15 +48,17 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
   const [selectedMarket, setSelectedMarket] = useState("kospi");
   const { toast } = useToast();
 
+  const defaultDates = getDefaultDates();
+
   const form = useForm<DataCollectionRequest>({
     resolver: zodResolver(dataCollectionRequest),
     defaultValues: {
-      startDate: "2024-01-01",
-      endDate: "2024-12-31",
+      startDate: defaultDates.startDate,
+      endDate: defaultDates.endDate,
       country: "korea",
       market: "kospi",
       sortBy: "market_cap",
-      limit: 20,
+      limit: 500,
     },
   });
 
@@ -97,17 +101,25 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
 
   const handleCountryChange = (country: "korea" | "usa") => {
     setSelectedCountry(country);
-    setSelectedMarket(country === "korea" ? "kospi" : "sp500");
+    setSelectedMarket("kospi");
   };
 
   const handleReset = () => {
-    form.reset();
+    const defaultDates = getDefaultDates();
+    form.reset({
+      startDate: defaultDates.startDate,
+      endDate: defaultDates.endDate,
+      country: "korea",
+      market: "kospi",
+      sortBy: "market_cap",
+      limit: 500,
+    });
     setSelectedCountry("korea");
     setSelectedMarket("kospi");
     onDataCollected([]);
   };
 
-  const currentMarkets = selectedCountry === "korea" ? koreanMarkets : usMarkets;
+  const currentMarkets = koreanMarkets;
 
   return (
     <Card className="bg-slate-900 border-slate-700">
@@ -162,37 +174,18 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
               />
             </div>
 
-            {/* Country Selection */}
+            {/* Country Selection (Korea only) */}
             <div>
               <Label className="text-slate-300 mb-2 block">국가 선택</Label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 <Button
                   type="button"
-                  variant={selectedCountry === "korea" ? "default" : "outline"}
-                  className={cn(
-                    "flex items-center gap-2",
-                    selectedCountry === "korea"
-                      ? "bg-blue-600 hover:bg-blue-700 text-white"
-                      : "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700"
-                  )}
-                  onClick={() => handleCountryChange("korea")}
+                  variant="default"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled
                 >
                   <Flag className="h-4 w-4" />
-                  한국
-                </Button>
-                <Button
-                  type="button"
-                  variant={selectedCountry === "usa" ? "default" : "outline"}
-                  className={cn(
-                    "flex items-center gap-2",
-                    selectedCountry === "usa"
-                      ? "bg-blue-600 hover:bg-blue-700 text-white"
-                      : "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700"
-                  )}
-                  onClick={() => handleCountryChange("usa")}
-                >
-                  <Flag className="h-4 w-4" />
-                  미국
+                  한국 (Korean Markets)
                 </Button>
               </div>
             </div>
@@ -267,11 +260,11 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
                         <Input
                           type="number"
                           min="1"
-                          max="100"
+                          max="500"
                           {...field}
                           onChange={(e) => field.onChange(Number(e.target.value))}
                           className="bg-slate-800 border-slate-600 text-white"
-                          placeholder="수집할 주식 수량"
+                          placeholder="수집할 주식 수량 (기본값: 500)"
                         />
                         <span className="absolute right-3 top-3 text-xs text-slate-400">
                           개
