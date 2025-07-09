@@ -197,7 +197,29 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
               </div>
             </div>
 
-            
+            {/* Market Selection */}
+            <div>
+              <Label className="text-slate-300 mb-4 block">시장 선택</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                {currentMarkets.map((market) => (
+                  <Button
+                    key={market.id}
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "h-auto p-4 flex-col items-start",
+                      selectedMarket === market.id
+                        ? "bg-blue-600 border-blue-500 text-white"
+                        : "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700"
+                    )}
+                    onClick={() => setSelectedMarket(market.id)}
+                  >
+                    <div className="font-medium">{market.name}</div>
+                    <div className="text-sm opacity-70">{market.description}</div>
+                  </Button>
+                ))}
+              </div>
+            </div>
 
             {/* Sort and Limit Options */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
