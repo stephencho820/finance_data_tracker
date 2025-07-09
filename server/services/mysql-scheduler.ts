@@ -1,7 +1,8 @@
-"""
+/*
 MySQL 기반 일일 데이터 수집 스케줄러
 매일 오전 8시에 daily-stock-collector-mysql.py 실행
-"""
+4개 랭킹 리스트 수집 후 중복 제거하여 종목 상세 데이터 수집
+*/
 
 import * as cron from 'node-cron';
 import { spawn } from 'child_process';
@@ -22,19 +23,20 @@ export class MySQLDataCollectionScheduler {
   }
 
   public start() {
-    console.log('[MySQL Scheduler] Starting MySQL data collection scheduler...');
+    console.log('[MySQL Scheduler] Starting MySQL ranking data collection scheduler...');
     
     // 매일 오전 8시 (KST) 실행
     const dailyTask = cron.schedule('0 8 * * *', async () => {
-      console.log('[MySQL Scheduler] Starting daily data collection...');
+      console.log('[MySQL Scheduler] Starting daily ranking data collection...');
+      console.log('[MySQL Scheduler] Collecting 4 ranking lists: KOSPI/KOSDAQ market_cap/volume top 500');
       await this.collectDailyData();
     }, {
       scheduled: true,
       timezone: 'Asia/Seoul'
     });
 
-    this.tasks.set('daily-collection', dailyTask);
-    console.log('[MySQL Scheduler] Daily data collection scheduled at 08:00 KST');
+    this.tasks.set('daily-ranking-collection', dailyTask);
+    console.log('[MySQL Scheduler] Daily ranking data collection scheduled at 08:00 KST');
   }
 
   public stop() {
@@ -50,7 +52,13 @@ export class MySQLDataCollectionScheduler {
     const scriptPath = path.join(__dirname, 'daily-stock-collector-mysql.py');
     
     try {
-      console.log('[MySQL Scheduler] Executing daily data collection script...');
+      console.log('[MySQL Scheduler] Executing daily ranking data collection script...');
+      console.log('[MySQL Scheduler] Script will collect:');
+      console.log('[MySQL Scheduler] - KOSPI market_cap top 500');
+      console.log('[MySQL Scheduler] - KOSDAQ market_cap top 500');
+      console.log('[MySQL Scheduler] - KOSPI volume top 500');
+      console.log('[MySQL Scheduler] - KOSDAQ volume top 500');
+      console.log('[MySQL Scheduler] - Deduplicate and collect stock details');
       
       // Python 스크립트 실행
       const pythonProcess = spawn('python3', [scriptPath], {
@@ -81,10 +89,11 @@ export class MySQLDataCollectionScheduler {
 
       pythonProcess.on('close', async (code) => {
         if (code === 0) {
-          console.log('[MySQL Scheduler] Daily data collection completed successfully');
+          console.log('[MySQL Scheduler] Daily ranking data collection completed successfully');
+          console.log('[MySQL Scheduler] 4 ranking lists processed, duplicates removed, stock details collected');
           await this.logCollectionResult('SUCCESS', null, stdout);
         } else {
-          console.error(`[MySQL Scheduler] Daily data collection failed with code ${code}`);
+          console.error(`[MySQL Scheduler] Daily ranking data collection failed with code ${code}`);
           await this.logCollectionResult('FAILED', stderr, stdout);
         }
       });
@@ -108,7 +117,7 @@ export class MySQLDataCollectionScheduler {
       output: output.slice(-1000), // 마지막 1000자만 저장
     };
 
-    const logPath = '/tmp/mysql_collection_log.json';
+    const logPath = '/tmp/mysql_ranking_collection_log.json';
     
     try {
       let logs = [];
@@ -134,12 +143,12 @@ export class MySQLDataCollectionScheduler {
   }
 
   public async manualCollect(): Promise<void> {
-    console.log('[MySQL Scheduler] Manual data collection triggered');
+    console.log('[MySQL Scheduler] Manual ranking data collection triggered');
     await this.collectDailyData();
   }
 
   public async getCollectionLogs(): Promise<any[]> {
-    const logPath = '/tmp/mysql_collection_log.json';
+    const logPath = '/tmp/mysql_ranking_collection_log.json';
     
     try {
       const logs = await fs.readFile(logPath, 'utf-8');

@@ -12,6 +12,9 @@ USE stock_db;
 CREATE TABLE IF NOT EXISTS stock_daily (
     date DATE NOT NULL COMMENT '거래일자',
     code VARCHAR(10) NOT NULL COMMENT '종목코드',
+    market ENUM('KOSPI', 'KOSDAQ') NOT NULL COMMENT '시장구분',
+    rank_type ENUM('market_cap', 'volume') NOT NULL COMMENT '랭킹구분',
+    rank INT NOT NULL COMMENT '순위',
     name VARCHAR(100) NOT NULL COMMENT '종목명',
     open BIGINT NOT NULL DEFAULT 0 COMMENT '시가',
     high BIGINT NOT NULL DEFAULT 0 COMMENT '고가',
@@ -22,14 +25,18 @@ CREATE TABLE IF NOT EXISTS stock_daily (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
     
-    -- 복합 기본키 (날짜, 종목코드)
-    PRIMARY KEY (date, code),
+    -- 복합 기본키 (날짜, 종목코드, 시장구분, 랭킹구분)
+    PRIMARY KEY (date, code, market, rank_type),
     
     -- 인덱스 생성
     INDEX idx_date (date),
     INDEX idx_code (code),
+    INDEX idx_market (market),
+    INDEX idx_rank_type (rank_type),
+    INDEX idx_rank (rank),
     INDEX idx_market_cap (market_cap DESC),
     INDEX idx_volume (volume DESC),
+    INDEX idx_market_rank (market, rank_type, rank),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB 
 CHARACTER SET utf8mb4 
@@ -61,5 +68,32 @@ SELECT
     DATE(MAX(date)) as latest_date,
     COUNT(*) as total_records,
     COUNT(DISTINCT code) as unique_stocks,
+    COUNT(DISTINCT CONCAT(market, '_', rank_type)) as ranking_types,
     DATEDIFF(MAX(date), MIN(date)) as retention_days
 FROM stock_daily;
+
+-- 랭킹별 데이터 현황 뷰
+CREATE OR REPLACE VIEW ranking_summary AS
+SELECT 
+    date,
+    market,
+    rank_type,
+    COUNT(*) as stock_count,
+    AVG(rank) as avg_rank,
+    MIN(rank) as min_rank,
+    MAX(rank) as max_rank
+FROM stock_daily
+GROUP BY date, market, rank_type
+ORDER BY date DESC, market, rank_type;
+
+-- 종목별 랭킹 포함 현황 뷰
+CREATE OR REPLACE VIEW stock_ranking_status AS
+SELECT 
+    date,
+    code,
+    name,
+    GROUP_CONCAT(CONCAT(market, '_', rank_type, '(', rank, ')') ORDER BY market, rank_type) as rankings,
+    COUNT(*) as ranking_count
+FROM stock_daily
+GROUP BY date, code, name
+ORDER BY date DESC, code;
