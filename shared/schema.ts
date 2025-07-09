@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, decimal, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, decimal, integer, date, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -42,6 +42,37 @@ export const stockData = pgTable("stock_data", {
   country: text("country").notNull(),
   market: text("market").notNull(),
   date: timestamp("date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// 5년치 일일 데이터 저장 테이블
+export const dailyStockData = pgTable("daily_stock_data", {
+  id: serial("id").primaryKey(),
+  symbol: text("symbol").notNull(),
+  name: text("name").notNull(),
+  date: date("date").notNull(),
+  open_price: decimal("open_price", { precision: 10, scale: 2 }),
+  high_price: decimal("high_price", { precision: 10, scale: 2 }),
+  low_price: decimal("low_price", { precision: 10, scale: 2 }),
+  close_price: decimal("close_price", { precision: 10, scale: 2 }),
+  volume: integer("volume"),
+  market_cap: text("market_cap"),
+  market: text("market").notNull(), // KOSPI, KOSDAQ
+  rank_by_market_cap: integer("rank_by_market_cap"),
+  rank_by_volume: integer("rank_by_volume"),
+  best_k_value: decimal("best_k_value", { precision: 10, scale: 4 }), // 알고리즘 계산 결과
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// 데이터 수집 작업 로그 테이블
+export const dataCollectionLog = pgTable("data_collection_log", {
+  id: serial("id").primaryKey(),
+  collection_date: date("collection_date").notNull(),
+  market: text("market").notNull(),
+  total_stocks: integer("total_stocks"),
+  status: text("status").notNull(), // success, failed, in_progress
+  error_message: text("error_message"),
+  execution_time: integer("execution_time"), // milliseconds
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -93,6 +124,7 @@ export const stockDataResponse = z.object({
   country: z.string(),
   market: z.string(),
   date: z.string(),
+  best_k_value: z.number().nullable().optional(), // 새로 추가된 Best k값
 });
 
 export const quickStatsResponse = z.object({
@@ -107,3 +139,7 @@ export type StockDataResponse = z.infer<typeof stockDataResponse>;
 export type QuickStatsResponse = z.infer<typeof quickStatsResponse>;
 export type StockData = typeof stockData.$inferSelect;
 export type InsertStockData = typeof stockData.$inferInsert;
+export type DailyStockData = typeof dailyStockData.$inferSelect;
+export type InsertDailyStockData = typeof dailyStockData.$inferInsert;
+export type DataCollectionLog = typeof dataCollectionLog.$inferSelect;
+export type InsertDataCollectionLog = typeof dataCollectionLog.$inferInsert;

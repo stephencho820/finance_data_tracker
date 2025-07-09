@@ -91,9 +91,49 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
     },
   });
 
+  // Best k값 계산 mutation
+  const calculateBestKMutation = useMutation({
+    mutationFn: async (data: DataCollectionRequest) => {
+      const response = await apiRequest("POST", "/api/calculate-best-k", data);
+      return response.json();
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        toast({
+          title: "Best k값 계산 완료",
+          description: result.message,
+        });
+        // 계산 후 최신 데이터 다시 불러오기
+        window.location.reload();
+      } else {
+        toast({
+          title: "Best k값 계산 실패",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "오류 발생",
+        description: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: DataCollectionRequest) => {
     collectDataMutation.mutate({
       ...data,
+      country: selectedCountry,
+      market: selectedMarket,
+    });
+  };
+
+  const onCalculateBestK = () => {
+    const formData = form.getValues();
+    calculateBestKMutation.mutate({
+      ...formData,
       country: selectedCountry,
       market: selectedMarket,
     });
@@ -295,6 +335,24 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
                 >
                   <RotateCcw className="h-4 w-4 mr-2" />
                   초기화
+                </Button>
+                <Button
+                  type="button"
+                  onClick={onCalculateBestK}
+                  disabled={calculateBestKMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {calculateBestKMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      계산 중...
+                    </>
+                  ) : (
+                    <>
+                      <ChartLine className="h-4 w-4 mr-2" />
+                      Best k값 계산
+                    </>
+                  )}
                 </Button>
                 <Button
                   type="submit"

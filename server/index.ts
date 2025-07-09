@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { DataCollectionScheduler } from "./services/scheduler";
 
 const app = express();
 app.use(express.json());
@@ -66,5 +67,9 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // 스케줄러 시작
+    const scheduler = DataCollectionScheduler.getInstance();
+    scheduler.start();
   });
 })();

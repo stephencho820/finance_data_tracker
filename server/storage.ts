@@ -1,4 +1,4 @@
-import { stockData, type StockData, type InsertStockData } from "@shared/schema";
+import { stockData, dailyStockData, type StockData, type InsertStockData, type DailyStockData, type InsertDailyStockData } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
@@ -11,6 +11,13 @@ export interface IStorage {
   createStockData(data: InsertStockData): Promise<StockData>;
   getAllStockData(): Promise<StockData[]>;
   createManyStockData(data: InsertStockData[]): Promise<StockData[]>;
+  
+  // Daily Stock Data methods
+  getDailyStockData(id: number): Promise<DailyStockData | undefined>;
+  getDailyStockDataBySymbol(symbol: string): Promise<DailyStockData[]>;
+  createDailyStockData(data: InsertDailyStockData): Promise<DailyStockData>;
+  getAllDailyStockData(): Promise<DailyStockData[]>;
+  createManyDailyStockData(data: InsertDailyStockData[]): Promise<DailyStockData[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -46,6 +53,32 @@ export class DatabaseStorage implements IStorage {
   async getAllStockData(): Promise<StockData[]> {
     const data = await db.select().from(stockData).orderBy(desc(stockData.createdAt));
     return data;
+  }
+
+  // Daily Stock Data methods
+  async getDailyStockData(id: number): Promise<DailyStockData | undefined> {
+    const [result] = await db.select().from(dailyStockData).where(eq(dailyStockData.id, id));
+    return result || undefined;
+  }
+
+  async getDailyStockDataBySymbol(symbol: string): Promise<DailyStockData[]> {
+    const result = await db.select().from(dailyStockData).where(eq(dailyStockData.symbol, symbol)).orderBy(desc(dailyStockData.date));
+    return result;
+  }
+
+  async createDailyStockData(insertData: InsertDailyStockData): Promise<DailyStockData> {
+    const [result] = await db.insert(dailyStockData).values(insertData).returning();
+    return result;
+  }
+
+  async getAllDailyStockData(): Promise<DailyStockData[]> {
+    const result = await db.select().from(dailyStockData).orderBy(desc(dailyStockData.date));
+    return result;
+  }
+
+  async createManyDailyStockData(insertData: InsertDailyStockData[]): Promise<DailyStockData[]> {
+    const result = await db.insert(dailyStockData).values(insertData).returning();
+    return result;
   }
 }
 

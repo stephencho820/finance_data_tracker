@@ -22,7 +22,7 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
 
   const handleDownload = () => {
     const csvContent = [
-      ["종목코드", "종목명", "현재가", "전일대비", "등락률", "거래량", "시가총액", "PER", "PBR", "배당수익률", "52주고가", "52주저가", "주당순이익", "섹터", "업종", "상장주식수", "장부가치", "국가", "시장"],
+      ["종목코드", "종목명", "현재가", "전일대비", "등락률", "거래량", "시가총액", "PER", "PBR", "배당수익률", "52주고가", "52주저가", "주당순이익", "섹터", "업종", "상장주식수", "장부가치", "Best k값", "국가", "시장"],
       ...data.map(item => [
         item.symbol,
         item.name,
@@ -41,6 +41,7 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
         item.industry || "N/A",
         item.shares_outstanding?.toString() || "N/A",
         item.book_value?.toString() || "N/A",
+        item.best_k_value?.toString() || "N/A",
         item.country,
         item.market
       ])
@@ -147,6 +148,7 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
                     <TableHead className="text-slate-300 text-right">PER</TableHead>
                     <TableHead className="text-slate-300 text-right">PBR</TableHead>
                     <TableHead className="text-slate-300 text-right">배당수익률</TableHead>
+                    <TableHead className="text-slate-300 text-right">Best k값</TableHead>
                     <TableHead className="text-slate-300 text-right">52주고가</TableHead>
                     <TableHead className="text-slate-300 text-right">52주저가</TableHead>
                     <TableHead className="text-slate-300 text-right">주당순이익</TableHead>
@@ -197,6 +199,22 @@ export function DataDisplay({ data, isLoading }: DataDisplayProps) {
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
                         {item.dividend_yield || "N/A"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.best_k_value ? (
+                          <Badge 
+                            variant="outline" 
+                            className={`
+                              ${item.best_k_value >= 0.7 ? 'bg-green-500/20 text-green-400 border-green-500' : 
+                                item.best_k_value >= 0.5 ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500' : 
+                                'bg-red-500/20 text-red-400 border-red-500'}
+                            `}
+                          >
+                            {item.best_k_value.toFixed(4)}
+                          </Badge>
+                        ) : (
+                          <span className="text-slate-500">미계산</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
                         {item.week_52_high ? formatPrice(item.week_52_high, item.country) : "N/A"}

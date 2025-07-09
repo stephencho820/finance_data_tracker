@@ -6,13 +6,124 @@ import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { DataCollectionScheduler } from "./services/scheduler";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Collect stock data
+  // Calculate Best k values - 새로운 핵심 API
+  app.post("/api/calculate-best-k", async (req, res) => {
+    try {
+      const validatedRequest = dataCollectionRequest.parse(req.body);
+      
+      // Spawn Python process for Best k calculation
+      const pythonScript = path.join(__dirname, "services", "best-k-calculator.py");
+      const pythonProcess = spawn("python3", [pythonScript]);
+      
+      // Set up timeout (10 minutes for algorithm calculation)
+      const timeout = setTimeout(() => {
+        pythonProcess.kill();
+        res.status(408).json({
+          success: false,
+          message: "Best k calculation timed out",
+          error: "The calculation took too long to process"
+        });
+      }, 600000);
+      
+      // Send input data to Python process
+      pythonProcess.stdin.write(JSON.stringify(validatedRequest));
+      pythonProcess.stdin.end();
+      
+      let output = "";
+      let error = "";
+      
+      pythonProcess.stdout.on("data", (data) => {
+        output += data.toString();
+      });
+      
+      pythonProcess.stderr.on("data", (data) => {
+        error += data.toString();
+      });
+      
+      pythonProcess.on("close", async (code) => {
+        clearTimeout(timeout);
+        
+        if (code !== 0) {
+          return res.status(500).json({
+            success: false,
+            message: "Failed to calculate Best k values",
+            error: error || "Unknown error occurred"
+          });
+        }
+        
+        try {
+          const result = JSON.parse(output);
+          
+          if (!result.success) {
+            return res.status(400).json({
+              success: false,
+              message: result.message,
+              error: result.traceback
+            });
+          }
+          
+          res.json({
+            success: true,
+            data: result.data,
+            message: result.message
+          });
+          
+        } catch (parseError) {
+          res.status(500).json({
+            success: false,
+            message: "Failed to parse Best k calculation result",
+            error: parseError instanceof Error ? parseError.message : "Unknown parsing error"
+          });
+        }
+      });
+      
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid request data for Best k calculation",
+        error: error instanceof Error ? error.message : "Unknown validation error"
+      });
+    }
+  });
+
+  // Manual daily data collection (for testing)
+  app.post("/api/collect-daily-data", async (req, res) => {
+    try {
+      const { market } = req.body;
+      
+      if (!market || !['KOSPI', 'KOSDAQ'].includes(market)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid market. Must be KOSPI or KOSDAQ"
+        });
+      }
+      
+      const scheduler = DataCollectionScheduler.getInstance();
+      const result = await scheduler.manualCollect(market);
+      
+      res.json({
+        success: true,
+        data: result,
+        message: `Daily data collection completed for ${market}`
+      });
+      
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to collect daily data",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Collect stock data (기존 API 유지)
   app.post("/api/collect-data", async (req, res) => {
     try {
       const validatedRequest = dataCollectionRequest.parse(req.body);

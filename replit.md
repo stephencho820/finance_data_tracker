@@ -126,6 +126,15 @@ Changelog:
   - Reduced sorting options to market cap and volume only
   - Increased default collection limit from 20 to 500 stocks
   - Enhanced form validation and error handling
+- July 09, 2025. Major Architecture Update - Automated Daily Collection & Best k Algorithm:
+  - Implemented automated daily data collection system with cron scheduler
+  - Added 5-year historical data storage with dailyStockData table
+  - Created Best k value calculation algorithm using technical indicators
+  - Added automated scheduler running at 08:00 KST for KOSPI, 08:05 KST for KOSDAQ
+  - Implemented /api/calculate-best-k endpoint for algorithmic analysis
+  - Added Best k value display in UI with color-coded badges
+  - Extended storage interface for daily stock data CRUD operations
+  - Created comprehensive logging system for data collection status
 ```
 
 ## User Preferences
