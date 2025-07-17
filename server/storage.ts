@@ -74,6 +74,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDailyStockDataByMarketAndRank(market: string, rankType: string, date: string): Promise<DailyStockData[]> {
+    const result = await db.select().from(dailyStockData).where(
+      and(
+        eq(dailyStockData.market, market),
+        eq(dailyStockData.rank_type, rankType),
+        eq(dailyStockData.date, date)
+      )
+    ).orderBy(dailyStockData.rank);
+    return result;
+  }
+
+  async createDailyStockData(insertData: InsertDailyStockData): Promise<DailyStockData> {
+    const [data] = await db
+      .insert(dailyStockData)
+      .values(insertData)
+      .returning();
+    return data;
+  }
+
+  async getAllDailyStockData(): Promise<DailyStockData[]> {
+    const data = await db.select().from(dailyStockData).orderBy(desc(dailyStockData.date));
+    return data;
+  }
+
+  async createManyDailyStockData(insertData: InsertDailyStockData[]): Promise<DailyStockData[]> {
+    if (!insertData || insertData.length === 0) {
+      return [];
+    }
+    const data = await db
+      .insert(dailyStockData)
+      .values(insertData)
+      .returning();
+    return data;
+  }
+
+  async getDailyStockDataByMarketAndRank(market: string, rankType: string, date: string): Promise<DailyStockData[]> {
     const result = await db.select().from(dailyStockData)
       .where(
         and(

@@ -1,73 +1,85 @@
+"use client";
+
 import { useState } from "react";
+import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { dataCollectionRequest, type DataCollectionRequest, type StockDataResponse } from "@shared/schema";
-import { Calendar, ChartLine, Download, Flag, RotateCcw, Filter, Hash } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
-// 기본 날짜 계산 함수
-function getDefaultDates() {
-  const today = new Date();
-  const endDate = new Date(today);
-  endDate.setDate(today.getDate() - 1); // 어제
-  
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - 2); // 2일 전
-  
-  return {
-    startDate: startDate.toISOString().split('T')[0],
-    endDate: endDate.toISOString().split('T')[0]
-  };
-}
+import { type StockDataResponse } from "@shared/schema";
 
-interface DataCollectionFormProps {
+export interface DataCollectionFormProps {
+  collectedData: StockDataResponse[];
   onDataCollected: (data: StockDataResponse[]) => void;
+  mode: "collect" | "simulate";
 }
 
-const koreanMarkets = [
-  { id: "kospi", name: "KOSPI", description: "코스피" },
-  { id: "kosdaq", name: "KOSDAQ", description: "코스닥" },
-];
+const today = new Date();
+const maxStartDate = new Date(today);
+maxStartDate.setFullYear(today.getFullYear() - 1);
+maxStartDate.setDate(maxStartDate.getDate() + 1);
 
-const sortOptions = [
-  { id: "market_cap", name: "시가총액", description: "Market Cap" },
-  { id: "volume", name: "거래량", description: "Volume" },
-];
+const FormSchema = z.object({
+  startDate: z.string(),
+  endDate: z.string(),
+  market: z.enum(["kospi", "kosdaq"]),
+  sortBy: z.literal("market_cap"),
+  rangeTop: z.coerce.number().min(1).max(199),
+  rangeBottom: z.coerce.number().min(2).max(200),
+});
 
-export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps) {
-  const [selectedCountry, setSelectedCountry] = useState<"korea" | "usa">("korea");
-  const [selectedMarket, setSelectedMarket] = useState("kospi");
+export type FormData = z.infer<typeof FormSchema>;
+
+export default function DataCollectionForm({
+  collectedData,
+  onDataCollected,
+  mode,
+}: DataCollectionFormProps) {
   const { toast } = useToast();
 
   const defaultDates = getDefaultDates();
 
-  const form = useForm<DataCollectionRequest>({
-    resolver: zodResolver(dataCollectionRequest),
+  const form = useForm<FormData>({
+    resolver: zodResolver(FormSchema),
     defaultValues: {
       startDate: defaultDates.startDate,
       endDate: defaultDates.endDate,
-      country: "korea",
       market: "kospi",
       sortBy: "market_cap",
-      limit: 500,
+      rangeTop: 10,
+      rangeBottom: 20,
     },
   });
 
-  const collectDataMutation = useMutation({
-    mutationFn: async (data: DataCollectionRequest) => {
-      const response = await apiRequest("POST", "/api/collect-data", data);
-      return response.json();
-    },
-    onSuccess: (result) => {
+  const handleCollectData = async () => {
+    try {
+      const formData = form.getValues();
+      const response = await apiRequest("POST", "/api/collect-data", {
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        market: formData.market,
+      });
+      const result = await response.json();
       if (result.success) {
         onDataCollected(result.data);
         toast({
@@ -81,99 +93,95 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
           variant: "destructive",
         });
       }
-    },
-    onError: (error) => {
+    } catch (error) {
+      console.error(error);
       toast({
-        title: "오류 발생",
-        description: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+        title: "에러",
+        description: "데이터 수집 중 오류가 발생했습니다.",
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
 
-  // Best k값 계산 mutation
-  const calculateBestKMutation = useMutation({
-    mutationFn: async (data: DataCollectionRequest) => {
-      const response = await apiRequest("POST", "/api/calculate-best-k", data);
-      return response.json();
-    },
-    onSuccess: (result) => {
-      if (result.success) {
+  const handleBestK = async () => {
+    try {
+      const formData = form.getValues();
+      const res = await apiRequest("GET", `/api/best-k/${formData.endDate}`);
+      const bestKList = await res.json();
+      if (bestKList.success === false) {
         toast({
-          title: "Best k값 계산 완료",
-          description: result.message,
-        });
-        // 계산 후 최신 데이터 다시 불러오기
-        window.location.reload();
-      } else {
-        toast({
-          title: "Best k값 계산 실패",
-          description: result.message,
+          title: "Best K 계산 실패",
+          description: bestKList.message,
           variant: "destructive",
         });
+        return;
       }
-    },
-    onError: (error) => {
+
+      const updated = collectedData.map((item) => {
+        const found = bestKList.find((b: any) => b.code === item.symbol);
+        return found ? { ...item, best_k: found.best_k } : item;
+      });
+
+      onDataCollected(updated);
       toast({
-        title: "오류 발생",
-        description: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+        title: "Best K 계산 완료",
+        description: `총 ${bestKList.length} 종목의 Best K가 업데이트 되었습니다.`,
+      });
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: "Best K 계산 실패",
+        description: "오류가 발생했습니다.",
         variant: "destructive",
       });
-    },
-  });
+    }
+  };
 
-  const onSubmit = (data: DataCollectionRequest) => {
-    collectDataMutation.mutate({
-      ...data,
-      country: selectedCountry,
-      market: selectedMarket,
+  const handleSimulate = (values: FormData) => {
+    if (values.rangeBottom <= values.rangeTop) {
+      toast({
+        title: "입력 오류",
+        description: "Bottom은 Top보다 커야 합니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "시뮬레이션 시작",
+      description: JSON.stringify(values, null, 2),
     });
-  };
 
-  const onCalculateBestK = () => {
-    const formData = form.getValues();
-    calculateBestKMutation.mutate({
-      ...formData,
-      country: selectedCountry,
-      market: selectedMarket,
-    });
+    // TODO: 여기에 시뮬레이션 API 호출 추가
   };
-
-  const handleCountryChange = (country: "korea" | "usa") => {
-    setSelectedCountry(country);
-    setSelectedMarket("kospi");
-  };
-
-  const handleReset = () => {
-    const defaultDates = getDefaultDates();
-    form.reset({
-      startDate: defaultDates.startDate,
-      endDate: defaultDates.endDate,
-      country: "korea",
-      market: "kospi",
-      sortBy: "market_cap",
-      limit: 500,
-    });
-    setSelectedCountry("korea");
-    setSelectedMarket("kospi");
-    onDataCollected([]);
-  };
-
-  const currentMarkets = koreanMarkets;
 
   return (
-    <Card className="bg-slate-900 border-slate-700">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <ChartLine className="h-5 w-5 text-blue-500" />
-          데이터 수집 설정
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="bg-slate-900 border-slate-700 p-6 space-y-4">
+      {mode === "collect" && (
+        <div className="flex gap-3">
+          <Button
+            onClick={handleCollectData}
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
+            데이터 수집
+          </Button>
+          <Button
+            onClick={handleBestK}
+            className="bg-green-600 text-white hover:bg-green-700"
+          >
+            Best K 산정
+          </Button>
+        </div>
+      )}
+
+      {mode === "simulate" && (
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Date Range */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <form
+            onSubmit={form.handleSubmit(handleSimulate)}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 시작 날짜 */}
               <FormField
                 control={form.control}
                 name="startDate"
@@ -185,14 +193,19 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
                         <Input
                           type="date"
                           {...field}
+                          max={today.toISOString().split("T")[0]}
+                          min={maxStartDate.toISOString().split("T")[0]}
                           className="bg-slate-800 border-slate-600 text-white"
                         />
                         <Calendar className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
                       </div>
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* 종료 날짜 */}
               <FormField
                 control={form.control}
                 name="endDate"
@@ -204,178 +217,138 @@ export function DataCollectionForm({ onDataCollected }: DataCollectionFormProps)
                         <Input
                           type="date"
                           {...field}
+                          max={today.toISOString().split("T")[0]}
                           className="bg-slate-800 border-slate-600 text-white"
                         />
                         <Calendar className="absolute right-3 top-3 h-4 w-4 text-slate-400" />
                       </div>
                     </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
 
-            {/* Country Selection (Korea only) */}
-            <div>
-              <Label className="text-slate-300 mb-2 block">국가 선택</Label>
-              <div className="grid grid-cols-1 gap-2">
-                <Button
-                  type="button"
-                  variant="default"
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled
-                >
-                  <Flag className="h-4 w-4" />
-                  한국 (Korean Markets)
-                </Button>
-              </div>
-            </div>
+              {/* 시장 선택 */}
+              <FormField
+                control={form.control}
+                name="market"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-300">시장 선택</FormLabel>
+                    <Select
+                      defaultValue={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="bg-slate-800 border-slate-600">
+                        <SelectItem value="kospi" className="text-white">
+                          KOSPI
+                        </SelectItem>
+                        <SelectItem value="kosdaq" className="text-white">
+                          KOSDAQ
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {/* Market Selection */}
-            <div>
-              <Label className="text-slate-300 mb-4 block">시장 선택</Label>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                {currentMarkets.map((market) => (
-                  <Button
-                    key={market.id}
-                    type="button"
-                    variant="outline"
-                    className={cn(
-                      "h-auto p-4 flex-col items-start",
-                      selectedMarket === market.id
-                        ? "bg-blue-600 border-blue-500 text-white"
-                        : "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700"
-                    )}
-                    onClick={() => setSelectedMarket(market.id)}
-                  >
-                    <div className="font-medium">{market.name}</div>
-                    <div className="text-sm opacity-70">{market.description}</div>
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Sort and Limit Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 정렬 기준 (비활성화) */}
               <FormField
                 control={form.control}
                 name="sortBy"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-slate-300 flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      정렬 기준
-                    </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
-                          <SelectValue placeholder="정렬 기준 선택" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="bg-slate-800 border-slate-600">
-                        {sortOptions.map((option) => (
-                          <SelectItem key={option.id} value={option.id} className="text-white hover:bg-slate-700">
-                            <div className="flex flex-col">
-                              <span className="font-medium">{option.name}</span>
-                              <span className="text-xs text-slate-400">{option.description}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="limit"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-slate-300 flex items-center gap-2">
-                      <Hash className="h-4 w-4" />
-                      수집 수량
-                    </FormLabel>
+                    <FormLabel className="text-slate-300">정렬 기준</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          min="1"
-                          max="500"
-                          {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
-                          className="bg-slate-800 border-slate-600 text-white"
-                          placeholder="수집할 주식 수량 (기본값: 500)"
-                        />
-                        <span className="absolute right-3 top-3 text-xs text-slate-400">
-                          개
-                        </span>
-                      </div>
+                      <Input
+                        {...field}
+                        disabled
+                        value="market_cap"
+                        className="bg-slate-800 border-slate-600 text-white"
+                      />
                     </FormControl>
                   </FormItem>
                 )}
               />
+
+              {/* Range Top */}
+              <FormField
+                control={form.control}
+                name="rangeTop"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-300">
+                      시뮬레이션 Range Top
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        min={1}
+                        max={199}
+                        className="bg-slate-800 border-slate-600 text-white"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Range Bottom */}
+              <FormField
+                control={form.control}
+                name="rangeBottom"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-slate-300">
+                      시뮬레이션 Range Bottom
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        min={2}
+                        max={200}
+                        className="bg-slate-800 border-slate-600 text-white"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2 text-sm text-slate-400">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>
-                  선택된 시장: <span className="text-blue-400 font-medium">
-                    {currentMarkets.find(m => m.id === selectedMarket)?.name}
-                  </span>
-                </span>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleReset}
-                  className="bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  초기화
-                </Button>
-                <Button
-                  type="button"
-                  onClick={onCalculateBestK}
-                  disabled={calculateBestKMutation.isPending}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  {calculateBestKMutation.isPending ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      계산 중...
-                    </>
-                  ) : (
-                    <>
-                      <ChartLine className="h-4 w-4 mr-2" />
-                      Best k값 계산
-                    </>
-                  )}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={collectDataMutation.isPending}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  {collectDataMutation.isPending ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      수집 중...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      데이터 수집
-                    </>
-                  )}
-                </Button>
-              </div>
+            <div className="flex justify-end">
+              <Button
+                type="submit"
+                className="bg-yellow-600 text-white hover:bg-yellow-700"
+              >
+                시뮬레이션 시작
+              </Button>
             </div>
           </form>
         </Form>
-      </CardContent>
+      )}
     </Card>
   );
+}
+
+function getDefaultDates() {
+  const today = new Date();
+  const endDate = new Date(today);
+  endDate.setDate(today.getDate() - 1);
+
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - 2);
+
+  return {
+    startDate: startDate.toISOString().split("T")[0],
+    endDate: endDate.toISOString().split("T")[0],
+  };
 }
