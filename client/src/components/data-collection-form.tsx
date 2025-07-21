@@ -84,7 +84,7 @@ export default function DataCollectionForm({
         onDataCollected(result.data);
         toast({
           title: "데이터 수집 완료",
-          description: result.message,
+          description: result.message || "수집이 완료되었습니다.",
         });
       } else {
         toast({
