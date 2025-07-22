@@ -74,11 +74,13 @@ export default function DataCollectionForm({
   const handleCollectData = async () => {
     try {
       const formData = form.getValues();
+      // 데이터 수집 버튼 클릭 시 호출되는 함수
       const response = await apiRequest("POST", "/api/collect-data", {
         startDate: formData.startDate,
         endDate: formData.endDate,
         market: formData.market,
       });
+      //////////////////////////////////
       const result = await response.json();
       if (result.success) {
         onDataCollected(result.data);

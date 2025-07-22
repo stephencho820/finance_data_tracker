@@ -29,19 +29,20 @@ def get_db_connection():
     return conn
 
 
-def get_top200_tickers(conn):
+def get_top200_tickers(conn, market):
     with conn.cursor() as cur:
         query = """
             SELECT ticker
             FROM daily_market_cap
             WHERE date = (SELECT MAX(date) FROM daily_market_cap)
+              AND ticker LIKE %s
             ORDER BY market_cap::numeric DESC
             LIMIT 200
         """
-        cur.execute(query)
+        pattern = 'A%' if market == 'kospi' else 'Q%'  # 예시로 KRX에서 종목코드 prefix 구분
+        cur.execute(query, (pattern, ))
         rows = cur.fetchall()
-        tickers = [row[0] for row in rows]
-        return tickers
+        return [row[0] for row in rows]
 
 
 def fetch_ohlcv(ticker, start_date, end_date):
@@ -106,12 +107,31 @@ def update_market_cap_with_ohlcv(conn, rows):
         execute_batch(cur, query, rows, page_size=100)
     conn.commit()
 
+    def main():
+        start_time = time.time()
+        logger.info("PostgreSQL 주식 데이터 수집 시작")
 
-def main():
-    start_time = time.time()
-    logger.info("PostgreSQL 주식 데이터 수집 시작")
+        # 👉 sys.argv로 파라미터 받기
+        if len(sys.argv) < 4:
+            logger.error(
+                "Usage: python collector.py <startDate: YYYY-MM-DD> <endDate: YYYY-MM-DD> <market>"
+            )
+            sys.exit(1)
 
-    conn = get_db_connection()
+        user_start_date = sys.argv[1]  # 예: '2024-01-01'
+        user_end_date = sys.argv[2]  # 예: '2024-07-01'
+        market = sys.argv[3]  # 예: 'kospi' or 'kosdaq'
+
+        logger.info(
+            f"입력 파라미터 - Start: {user_start_date}, End: {user_end_date}, Market: {market}"
+        )
+
+        # 날짜 포맷 변환
+        start_date = user_start_date.replace("-", "")
+        end_date = user_end_date.replace("-", "")
+        target_date_str = user_end_date  # 어제 기준으로 병합 대상 날짜 지정
+
+        conn = get_db_connection()
 
     # 수집일자 설정
     today = datetime.now().date()
