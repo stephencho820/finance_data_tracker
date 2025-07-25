@@ -1,5 +1,6 @@
 "use client";
 
+import { formatKoreanWon } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -129,22 +130,22 @@ const MarketCapSection = ({ data }: MarketCapSectionProps) => {
                         {row.ticker}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {format(row.open_price)}
+                        {formatKoreanWon(row.open_price)}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {format(row.high_price)}
+                        {formatKoreanWon(row.high_price)}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {format(row.low_price)}
+                        {formatKoreanWon(row.low_price)}
                       </TableCell>
                       <TableCell className="text-right text-white font-medium">
-                        {format(row.close_price)}
+                        {formatKoreanWon(row.close_price)}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
                         {format(row.volume)}
                       </TableCell>
                       <TableCell className="text-right text-slate-300">
-                        {format(row.market_cap)}
+                        {formatKoreanWon(row.market_cap)}
                       </TableCell>
                     </TableRow>
                   ))}

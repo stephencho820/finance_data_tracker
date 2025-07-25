@@ -78,7 +78,6 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   {/* ✅ 상태 단계 UI 추가 */}
-                  <CollectionSteps />
 
                   <DataCollectionForm
                     mode="collect"

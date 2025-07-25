@@ -1,58 +1,55 @@
-"use client";
+// ✅ 수집 상태 확인 API
+router.get("/collection-status", async (_req, res) => {
+  try {
+    const client = await pool.connect();
 
-import { useEffect, useState } from "react";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-export default function CollectionSteps() {
-  const [status, setStatus] = useState({
-    marketCapDone: false,
-    ohlcvDone: false,
-    bestKDone: false,
-    marketCapDate: "",
-    ohlcvDate: "",
-  });
+    // ✅ 시가총액 수집 완료 여부
+    const { rows: capRows } = await client.query(`
+      SELECT MAX(date) AS date FROM daily_market_cap WHERE market_cap IS NOT NULL
+    `);
+    const marketCapDate: Date | null = capRows[0]?.date || null;
+    const marketCapDone =
+      marketCapDate &&
+      new Date(marketCapDate).toDateString() === today.toDateString();
 
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch("/api/collection-status");
-        const json = await res.json();
-        if (json.success) {
-          setStatus(json.data);
-        } else {
-          console.warn("🚫 상태 조회 실패:", json.message);
-        }
-      } catch (err) {
-        console.error("❌ 상태 확인 실패:", err);
-      }
-    };
+    // ✅ OHLCV 수집 완료 여부
+    const { rows: ohlcvRows } = await client.query(`
+      SELECT MAX(date) AS date FROM daily_stock_data
+    `);
+    const ohlcvDate: Date | null = ohlcvRows[0]?.date || null;
+    const ohlcvDone =
+      ohlcvDate && new Date(ohlcvDate).toDateString() === today.toDateString();
 
-    fetchStatus();
-  }, []);
+    // ✅ Best K 계산 완료 여부
+    let bestKDone = false;
+    if (marketCapDone) {
+      const { rows: bestKRows } = await client.query(
+        `
+        SELECT COUNT(*) FROM daily_market_cap
+        WHERE best_k IS NULL AND date = $1
+      `,
+        [marketCapDate],
+      );
+      bestKDone = parseInt(bestKRows[0]?.count || "0") === 0;
+    }
 
-  const Step = ({ label, done }: { label: string; done: boolean }) => (
-    <div className="flex flex-col items-center w-1/3">
-      <div
-        className={`rounded-full w-5 h-5 mb-1 ${
-          done ? "bg-green-400" : "bg-slate-500"
-        }`}
-      />
-      <div className="text-sm text-slate-300 text-center">{label}</div>
-    </div>
-  );
+    client.release();
 
-  return (
-    <div className="mb-6">
-      {/* ✅ 수집 단계 상태 */}
-      <div className="flex justify-between items-center space-x-2 px-2 mb-2">
-        <Step label="시가총액 수집" done={status.marketCapDone} />
-        <Step label="OHLCV 수집" done={status.ohlcvDone} />
-        <Step label="Best K 계산" done={status.bestKDone} />
-      </div>
-
-      {/* ✅ 수집일자 정보 */}
-      <div className="text-sm text-slate-400 text-center">
-        시가총액 수집일: {status.marketCapDate || "없음"} / OHLCV 수집일: {status.ohlcvDate || "없음"}
-      </div>
-    </div>
-  );
-}
+    return res.status(200).json({
+      success: true,
+      data: {
+        marketCapDone,
+        ohlcvDone,
+        bestKDone,
+        marketCapDate,
+        ohlcvDate,
+      },
+    });
+  } catch (err) {
+    console.error("❌ 상태 확인 오류:", err);
+    return res.status(500).json({ success: false, message: "상태 확인 실패" });
+  }
+});

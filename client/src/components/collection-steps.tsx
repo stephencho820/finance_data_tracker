@@ -2,66 +2,104 @@
 
 import { CheckCircle, Loader2 } from "lucide-react";
 
-// ✅ 이 컴포넌트는 📄 client/src/components/collection-steps.tsx 에 위치해야 합니다
+const steps = ["시가총액 수집", "1Y 수집", "Best K 계산"] as const;
 
-const steps = [
-  "시가총액 수집",
-  "OHLCV 수집",
-  "Best K 계산",
-  "시뮬레이터 설정",
-  "실전 매매 준비",
-] as const;
+type StepStatus = "done" | "loading" | "pending";
 
 interface CollectionStepsProps {
-  currentStep: number; // ✅ 현재 단계는 외부에서 props로 전달받습니다
+  statuses: StepStatus[];
+  dates?: {
+    marketCap?: string;
+    ohlcv?: string;
+    bestK?: string;
+  };
+  onStepClick?: (index: number) => void;
 }
 
-export default function CollectionSteps({ currentStep }: CollectionStepsProps) {
-  const getStatus = (index: number) => {
-    if (index < currentStep) return "done";
-    if (index === currentStep) return "active";
-    return "pending";
+export default function CollectionSteps({
+  statuses,
+  dates,
+  onStepClick,
+}: CollectionStepsProps) {
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+  };
+
+  const getDateLabel = (index: number) => {
+    switch (index) {
+      case 0:
+        return dates?.marketCap
+          ? `${formatDate(dates.marketCap)} update 완료`
+          : null;
+      case 1:
+        return dates?.ohlcv ? `${formatDate(dates.ohlcv)} update 완료` : null;
+      case 2:
+        return dates?.bestK ? `${formatDate(dates.bestK)} update 완료` : null;
+      default:
+        return null;
+    }
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 mb-6">
-      {steps.map((label, index) => {
-        const status = getStatus(index);
-        const isLast = index === steps.length - 1;
+    <div className="flex justify-center mb-6">
+      <div className="flex items-start gap-0">
+        {steps.map((label, index) => {
+          const status = statuses[index];
+          const isClickable = status === "pending" && onStepClick;
 
-        return (
-          <div key={index} className="flex items-center gap-2 w-full">
-            {/* Step Circle */}
-            <div className="flex flex-col items-center">
-              <div
-                className={`rounded-full w-6 h-6 flex items-center justify-center
-                  ${
-                    status === "done"
-                      ? "bg-green-500 text-white"
-                      : status === "active"
-                        ? "border-2 border-blue-500 text-blue-500"
-                        : "border-2 border-slate-600 text-slate-400"
-                  }
-                `}
-              >
-                {status === "done" ? (
-                  <CheckCircle size={16} className="text-white" />
-                ) : status === "active" ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  index + 1
-                )}
+          return (
+            <div key={index} className="flex items-start">
+              {/* Step Item */}
+              <div className="flex flex-col items-center gap-2 min-w-[90px]">
+                <button
+                  onClick={() => isClickable && onStepClick?.(index)}
+                  disabled={!isClickable}
+                  className="flex flex-col items-center bg-transparent border-none focus:outline-none cursor-pointer"
+                >
+                  <div
+                    className={`rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold
+                      ${
+                        status === "done"
+                          ? "bg-green-500 text-white"
+                          : status === "loading"
+                            ? "bg-blue-500 text-white animate-spin"
+                            : "bg-slate-600 text-white hover:bg-white hover:text-slate-800"
+                      }
+                    `}
+                  >
+                    {status === "done" ? (
+                      <CheckCircle size={16} className="text-white" />
+                    ) : status === "loading" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      index + 1
+                    )}
+                  </div>
+
+                  <span className="text-xs mt-1 text-center text-slate-300 w-24">
+                    {label}
+                  </span>
+
+                  {getDateLabel(index) && (
+                    <span className="text-[10px] text-slate-500 mt-1">
+                      {getDateLabel(index)}
+                    </span>
+                  )}
+                </button>
               </div>
-              <span className="text-xs mt-1 text-center text-slate-300 w-20">
-                {label}
-              </span>
-            </div>
 
-            {/* Divider */}
-            {!isLast && <div className="flex-1 h-px bg-slate-700" />}
-          </div>
-        );
-      })}
+              {/* Divider (except last) */}
+              {index < steps.length - 1 && (
+                <div className="flex items-center mt-[10px]">
+                  <div className="w-8 h-px bg-slate-700 mx-2" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

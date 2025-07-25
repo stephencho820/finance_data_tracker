@@ -1,4 +1,4 @@
-// 📄 server/routes/api.ts
+// ✅ server/routes/api.ts
 import { Router } from "express";
 import { spawn } from "child_process";
 import pg from "pg"; // ✅ PostgreSQL 연결 추가
@@ -58,59 +58,101 @@ function runPython(scriptPath: string): Promise<void> {
   });
 }
 
+// ✅ best k 계산
+router.post("/calculate-best-k", async (_req, res) => {
+  try {
+    await runPython("server/services/best-k-calculator.py");
+    return res.status(200).json({
+      success: true,
+      message: "Best K 계산 완료",
+    });
+  } catch (err) {
+    console.error("❌ Best K 계산 오류:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Best K 계산 실패",
+    });
+  }
+});
+
 // ✅ 수집 상태 확인 API (최종 단계 및 날짜 확인용)
 router.get("/collection-status", async (_req, res) => {
   try {
     const client = await pool.connect();
 
-    // 📅 market_cap 기준 최신 날짜
-    const { rows: capRows } = await client.query(`
-      SELECT MAX(date) AS date
-      FROM daily_market_cap
-      WHERE market_cap IS NOT NULL
-    `);
-    const marketCapDate = capRows[0]?.date;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    // 📅 OHLCV 기준 최신 날짜 (모든 OHLCV 필드가 null이 아닌 경우)
-    const { rows: ohlcvRows } = await client.query(`
-      SELECT MAX(date) AS date
-      FROM daily_market_cap
-      WHERE open_price IS NOT NULL
-        AND high_price IS NOT NULL
-        AND low_price IS NOT NULL
-        AND close_price IS NOT NULL
-        AND volume IS NOT NULL
-    `);
-    const ohlcvDate = ohlcvRows[0]?.date;
-
-    // 🧠 최종 단계 판단
-    let step = 0;
-    if (marketCapDate) step = 1;
-    if (ohlcvDate && ohlcvDate.toISOString() === marketCapDate?.toISOString())
-      step = 2;
-
-    const { rows: bestKRows } = await client.query(
-      `
-      SELECT COUNT(*) FROM daily_market_cap
-      WHERE best_k IS NOT NULL AND date = $1
-    `,
-      [ohlcvDate],
+    // 시가총액 수집 완료 여부 및 날짜
+    const { rows: capRows } = await client.query(
+      `SELECT MAX(date) AS date FROM daily_market_cap WHERE market_cap IS NOT NULL`,
     );
+    const marketCapDate: Date | null = capRows[0]?.date || null;
+    const marketCapDone =
+      marketCapDate &&
+      new Date(marketCapDate).toDateString() === today.toDateString();
 
-    const bestKCount = parseInt(bestKRows[0]?.count || "0");
-    if (step === 2 && bestKCount > 0) step = 3;
+    // OHLCV 수집 완료 여부 및 날짜
+    const { rows: ohlcvRows } = await client.query(
+      `SELECT MAX(date) AS date FROM daily_stock_data`,
+    );
+    const ohlcvDate: Date | null = ohlcvRows[0]?.date || null;
+    const ohlcvDone =
+      ohlcvDate && new Date(ohlcvDate).toDateString() === today.toDateString();
+
+    // Best K 계산 여부
+    let bestKDone = false;
+    if (marketCapDone) {
+      const { rows: bestKRows } = await client.query(
+        `SELECT COUNT(*) FROM daily_market_cap WHERE best_k IS NULL AND date = $1`,
+        [marketCapDate],
+      );
+      bestKDone = parseInt(bestKRows[0]?.count || "0") === 0;
+    }
 
     client.release();
 
     return res.status(200).json({
       success: true,
-      step,
-      marketCapDate,
-      ohlcvDate,
+      data: {
+        marketCapDone,
+        ohlcvDone,
+        bestKDone,
+        marketCapDate,
+        ohlcvDate,
+      },
     });
   } catch (err) {
     console.error("❌ 상태 확인 오류:", err);
     return res.status(500).json({ success: false, message: "상태 확인 실패" });
+  }
+});
+
+// ✅ 시가총액 수집만 실행
+router.post("/collect-market-cap", async (_req, res) => {
+  console.log("📥 시가총액 수집 시작");
+  dataCollectionProgress.current = 0;
+  dataCollectionProgress.total = 200;
+  try {
+    await runPython("server/services/collector_market_cap.py");
+    res.status(200).json({ success: true, message: "시가총액 수집 완료" });
+  } catch (err) {
+    console.error("❌ 시가총액 수집 오류:", err);
+    res.status(500).json({ success: false, message: "시가총액 수집 실패" });
+  }
+});
+
+// ✅ 1Y 수집만 실행
+router.post("/collect-ohlcv", async (_req, res) => {
+  console.log("📥 1Y 수집 시작");
+  dataCollectionProgress.current = 0;
+  dataCollectionProgress.total = 200;
+  try {
+    await runPython("server/services/collector.py");
+    res.status(200).json({ success: true, message: "1Y 수집 완료" });
+  } catch (err) {
+    console.error("❌ 1Y 수집 오류:", err);
+    res.status(500).json({ success: false, message: "1Y 수집 실패" });
   }
 });
 
