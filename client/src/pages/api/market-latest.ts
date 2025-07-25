@@ -1,3 +1,5 @@
+// 📄 client/src/pages/api/market-latest.ts
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import { db } from "@/lib/db"; // DB 연결 유틸
 
@@ -7,7 +9,18 @@ export default async function handler(
 ) {
   try {
     const result = await db.query(`
-      SELECT *
+      SELECT
+        name,
+        ticker,
+        market,
+        market_cap,
+        open_price,
+        high_price,
+        low_price,
+        close_price,
+        volume,
+        best_k,
+        date
       FROM daily_market_cap
       WHERE date = (SELECT MAX(date) FROM daily_market_cap)
       ORDER BY market_cap::numeric DESC

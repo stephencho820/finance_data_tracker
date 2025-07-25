@@ -12,10 +12,13 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const isPostLike =
+    method.toUpperCase() === "POST" || method.toUpperCase() === "PUT";
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
+    headers: { "Content-Type": "application/json" },
+    body: isPostLike ? JSON.stringify(data ?? {}) : undefined,
     credentials: "include",
   });
 

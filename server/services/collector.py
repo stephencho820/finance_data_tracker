@@ -29,20 +29,29 @@ def get_db_connection():
     return conn
 
 
-def get_top200_tickers(conn, market):
+def get_top200_tickers(conn):
     with conn.cursor() as cur:
         query = """
             SELECT ticker
             FROM daily_market_cap
             WHERE date = (SELECT MAX(date) FROM daily_market_cap)
-              AND ticker LIKE %s
             ORDER BY market_cap::numeric DESC
             LIMIT 200
         """
-        pattern = 'A%' if market == 'kospi' else 'Q%'  # 예시로 KRX에서 종목코드 prefix 구분
-        cur.execute(query, (pattern, ))
+        cur.execute(query)
         rows = cur.fetchall()
         return [row[0] for row in rows]
+
+
+def get_latest_working_day():
+    today = datetime.today().date()
+    for i in range(0, 10):
+        date = today - timedelta(days=i)
+        if stock.get_market_ohlcv_by_date(date.strftime("%Y%m%d"),
+                                          date.strftime("%Y%m%d"),
+                                          "005930").empty is False:
+            return date
+    raise Exception("최근 거래일을 찾을 수 없습니다.")
 
 
 def fetch_ohlcv(ticker, start_date, end_date):
@@ -107,40 +116,23 @@ def update_market_cap_with_ohlcv(conn, rows):
         execute_batch(cur, query, rows, page_size=100)
     conn.commit()
 
-    def main():
-        start_time = time.time()
-        logger.info("PostgreSQL 주식 데이터 수집 시작")
 
-        # 👉 sys.argv로 파라미터 받기
-        if len(sys.argv) < 4:
-            logger.error(
-                "Usage: python collector.py <startDate: YYYY-MM-DD> <endDate: YYYY-MM-DD> <market>"
-            )
-            sys.exit(1)
+def main():
+    start_time = time.time()
+    logger.info("PostgreSQL 주식 데이터 수집 시작")
 
-        user_start_date = sys.argv[1]  # 예: '2024-01-01'
-        user_end_date = sys.argv[2]  # 예: '2024-07-01'
-        market = sys.argv[3]  # 예: 'kospi' or 'kosdaq'
+    # 최신 거래일 기준 설정
+    end_date_obj = get_latest_working_day()
+    start_date_obj = end_date_obj - timedelta(days=365)
 
-        logger.info(
-            f"입력 파라미터 - Start: {user_start_date}, End: {user_end_date}, Market: {market}"
-        )
+    start_date = start_date_obj.strftime("%Y%m%d")
+    end_date = end_date_obj.strftime("%Y%m%d")
+    target_date_str = end_date_obj.strftime("%Y-%m-%d")
 
-        # 날짜 포맷 변환
-        start_date = user_start_date.replace("-", "")
-        end_date = user_end_date.replace("-", "")
-        target_date_str = user_end_date  # 어제 기준으로 병합 대상 날짜 지정
+    logger.info(
+        f"수집 기간: {start_date} ~ {end_date} (target: {target_date_str})")
 
-        conn = get_db_connection()
-
-    # 수집일자 설정
-    today = datetime.now().date()
-    yesterday = today - timedelta(days=1)
-    end_date = yesterday.strftime("%Y%m%d")
-    start_date = (yesterday - timedelta(days=365)).strftime("%Y%m%d")
-    target_date_str = yesterday.strftime("%Y-%m-%d")  # 업데이트에 사용할 문자열 날짜
-
-    # top200 ticker 가져오기
+    conn = get_db_connection()
     tickers = get_top200_tickers(conn)
     logger.info(f"Top200 ticker 수: {len(tickers)}")
 
@@ -157,7 +149,6 @@ def update_market_cap_with_ohlcv(conn, rows):
         total_inserted += inserted
         logger.info(f"{ticker}: {inserted} rows 저장")
 
-        # 어제 날짜 데이터만 저장
         latest_row = next((r for r in rows if r["date"] == target_date_str),
                           None)
         if latest_row:
@@ -165,13 +156,11 @@ def update_market_cap_with_ohlcv(conn, rows):
 
         time.sleep(1)
 
-    # latest OHLCV → market_cap 테이블에 업데이트
     logger.info("daily_market_cap 테이블에 OHLCV 병합 업데이트 중...")
     update_market_cap_with_ohlcv(conn, latest_ohlcv_rows)
 
     logger.info(f"전체 수집 완료. 총 {total_inserted:,} rows 저장.")
     logger.info(f"소요 시간: {time.time() - start_time:.2f} sec")
-
     conn.close()
 
 
