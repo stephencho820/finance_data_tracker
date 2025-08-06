@@ -10,4 +10,5 @@ dependencies = [
     "psycopg2-binary>=2.9.10",
     "pykrx>=1.0.51",
     "yfinance>=0.2.65",
+    "FinanceDataReader>=0.9.50",
 ]

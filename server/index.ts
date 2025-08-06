@@ -39,8 +39,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await registerRoutes(app); // ✅ 더 이상 server 리턴 안 받음
   app.use("/api", apiRoutes); // 👈 이 줄 추가해
+  await registerRoutes(app); // ✅ 더 이상 server 리턴 안 받음
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
